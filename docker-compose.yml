@@ -1,0 +1,11 @@
+services:
+  landed-deal-advisor:
+    image: python:3.12-slim
+    working_dir: /app
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      LANDED_API_BASE_URL: ${LANDED_API_BASE_URL:-http://host.docker.internal:3001}
+    command: python -c "from packages.agents.landed_deal_advisor import root_agent; print(root_agent.name)"
