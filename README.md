@@ -9,35 +9,43 @@ landed-ai-commerce-platform/
 ├── packages/
 │   ├── agents/
 │   │   ├── orchestrator/
-│   │   │   └── landed_orchestrator_agent.py
+│   │   │   ├── landed_orchestrator_agent.py
+│   │   │   └── prompts.py
 │   │   ├── product_search/
-│   │   │   └── product_search_agent.py
+│   │   │   ├── product_search_agent.py
+│   │   │   └── prompts.py
 │   │   ├── audio_expert/
-│   │   │   └── audio_expert_agent.py
+│   │   │   ├── audio_expert_agent.py
+│   │   │   └── prompts.py
 │   │   ├── pricing/
-│   │   │   └── pricing_agent.py
+│   │   │   ├── pricing_agent.py
+│   │   │   └── prompts.py
 │   │   ├── import_cost/
-│   │   │   └── import_cost_agent.py
+│   │   │   ├── import_cost_agent.py
+│   │   │   └── prompts.py
 │   │   ├── recommendation/
-│   │   │   └── recommendation_agent.py
-│   │   └── landed_deal_advisor/
-│   │       └── agent.py
+│   │   │   ├── recommendation_agent.py
+│   │   │   └── prompts.py
+│   │   └── deal_advisor/
+│   │       ├── deal_advisor_agent.py
+│   │       └── prompts.py
 │   ├── tools/
-│   │   ├── search_products_tool.py
-│   │   ├── get_product_details_tool.py
-│   │   ├── get_local_price_tool.py
-│   │   ├── calculate_import_cost_tool.py
-│   │   └── retrieve_knowledge_tool.py
+│   │   ├── product/
+│   │   ├── pricing/
+│   │   └── knowledge/
 │   ├── rag/
 │   │   ├── product_knowledge/
 │   │   ├── buying_guides/
 │   │   ├── reviews/
-│   │   └── embeddings/
+│   │   ├── embeddings/
+│   │   └── ingestion/
 │   └── shared/
 │       ├── schemas/
 │       ├── dto/
 │       ├── logging/
-│       └── config/
+│       ├── config/
+│       ├── errors/
+│       └── observability/
 ├── docs/
 │   ├── architecture.md
 │   ├── roadmap.md
@@ -59,8 +67,7 @@ Coordinates product search, pricing, import cost, retrieval, and recommendation 
 - `pricing`: analyzes Colombian local market prices.
 - `import_cost`: estimates landed import costs.
 - `recommendation`: turns the evidence into a final buying recommendation.
-
-`landed_deal_advisor` remains as a compatibility alias for the orchestrator.
+- `deal_advisor`: evaluates whether a specific buying opportunity is a good deal.
 
 ## Configuration
 
@@ -79,10 +86,12 @@ LANDED_API_BASE_URL=http://localhost:3001
 ## Development Guide
 
 - Add or refine agent behavior in `packages/agents/<agent_name>/`.
+- Keep agent instructions in each agent's `prompts.py`.
 - Add deterministic API calls or calculations in `packages/tools/`.
 - Add typed contracts in `packages/shared/schemas/` and transport DTOs in `packages/shared/dto/`.
 - Add runtime configuration in `packages/shared/config/`.
-- Add trace/log helpers in `packages/shared/logging/`.
+- Add domain errors in `packages/shared/errors/`.
+- Add trace/log helpers in `packages/shared/logging/` and agent observability helpers in `packages/shared/observability/`.
 - Add future retrieval corpora or indexes in `packages/rag/`.
 
 The orchestrator should stay focused on planning, delegation, fallback handling, and final synthesis. Domain-specific rules should live in the specialist agent that owns that domain.

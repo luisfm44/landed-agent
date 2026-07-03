@@ -10,9 +10,10 @@
 - `packages/agents/pricing`: agent focused on Colombian local market price context.
 - `packages/agents/import_cost`: agent focused on landed import cost analysis.
 - `packages/agents/recommendation`: agent focused on final buying recommendations.
-- `packages/tools`: reusable tools for backend API calls, pricing, import cost, search, and retrieval.
-- `packages/rag`: local knowledge collections for product knowledge, buying guides, reviews, and embeddings.
-- `packages/shared`: shared schemas, DTOs, logging, and configuration.
+- `packages/agents/deal_advisor`: specialist agent that evaluates whether a specific buying opportunity is worth it.
+- `packages/tools`: reusable tools grouped by product, pricing, and knowledge domains.
+- `packages/rag`: local knowledge collections for product knowledge, buying guides, reviews, embeddings, and ingestion.
+- `packages/shared`: shared schemas, DTOs, logging, configuration, errors, and observability.
 
 ## Runtime Flow
 
@@ -28,14 +29,16 @@
 - Landed backend API, configured with `LANDED_API_BASE_URL`.
 - Google ADK for agent runtime.
 
-## Suggested patterns Mapping
+## Chapter 14 Pattern Mapping
 
 The initial implementation follows a flat supervisor architecture:
 
 - `LandedOrchestratorAgent` is the supervisor. It plans, delegates, handles fallbacks, and synthesizes the final answer.
-- Specialist agents own narrow domains: product search, audio expertise, pricing, import cost, and recommendation.
+- Specialist agents own narrow domains: product search, deal assessment, audio expertise, pricing, import cost, and recommendation.
 - Tools perform concrete actions such as backend API calls, product search, price lookup, import cost lookup, and knowledge retrieval.
 - Shared schemas define the contracts that agents should exchange as the platform matures.
+
+`DealAdvisorAgent` is intentionally a specialist, not a second orchestrator. Use it when the user asks whether a concrete listing, used product, import opportunity, or local offer is a good deal.
 
 The orchestrator prompt uses the RECAP / REASON / VERIFY loop as an internal reasoning discipline:
 
@@ -53,6 +56,13 @@ The first shared contracts live in `packages/shared/schemas/commerce.py`:
 - `PricingResult`
 - `ImportCostResult`
 - `RecommendationResult`
+
+Domain-specific schema modules provide narrower contracts for agent work:
+
+- `product_search_schema.py`
+- `pricing_schema.py`
+- `recommendation_schema.py`
+- `agent_response_schema.py`
 
 The lightweight agent transport DTOs live in `packages/shared/dto/agent_io.py`:
 
@@ -79,6 +89,7 @@ Today the orchestrator calls specialist capabilities as tools. The next step is 
 ```text
 LandedOrchestratorAgent
   -> ProductSearchAgent
+  -> DealAdvisorAgent
   -> AudioExpertAgent
   -> PricingAgent
   -> ImportCostAgent
