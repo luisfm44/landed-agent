@@ -7,9 +7,9 @@
 - `packages/agents/orchestrator`: entry-point agent that coordinates the commerce workflow, manages fallbacks, and synthesizes the final answer.
 - `packages/agents/product_search`: specialist agent focused on product resolution, candidate discovery, and offer search.
 - `packages/agents/audio_expert`: specialist agent for audio product analysis, technical fit, and buying guidance.
-- `packages/agents/pricing`: agent focused on Colombian local market price context.
-- `packages/agents/import_cost`: agent focused on landed import cost analysis.
-- `packages/agents/recommendation`: agent focused on final buying recommendations.
+- `packages/agents/pricing`: specialist agent focused on Colombian local market price context.
+- `packages/agents/import_cost`: specialist agent focused on landed import cost analysis.
+- `packages/agents/recommendation`: specialist agent focused on final buying recommendations.
 - `packages/agents/deal_advisor`: specialist agent that evaluates whether a specific listing, used product, import opportunity, or local offer is worth it.
 - `packages/tools`: reusable tools grouped by product, pricing, import, and knowledge domains.
 - `packages/rag`: local knowledge collections for product knowledge, buying guides, reviews, embeddings, and ingestion.
@@ -108,7 +108,7 @@ This supports debugging, auditability, evaluation, and future optimization of th
 
 ## Next Architecture Step
 
-Today the orchestrator calls specialist capabilities as tools. The next step is to wrap specialist agents with ADK `AgentTool`, so the system follows the full Agent Delegates to Agent pattern:
+Today, the orchestrator calls specialist capabilities mostly through tools. The next step is to wrap specialist agents with ADK `AgentTool`, so the system follows the full Agent Delegates to Agent pattern:
 
 ```text
 LandedOrchestratorAgent
