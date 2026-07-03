@@ -4,7 +4,10 @@ def retrieve_knowledge(query: str) -> dict:
     The RAG pipeline is not wired yet, so this returns an explicit empty result.
     """
     return {
+        "ok": True,
+        "tool": "retrieve_knowledge",
         "query": query,
+        "source": "local_rag_placeholder",
         "results": [],
         "message": "RAG knowledge retrieval is not configured yet.",
     }

@@ -1,13 +1,29 @@
 from google.adk.agents import Agent
 
+from packages.shared.config import FAST_AGENT_MODEL
 from packages.tools import get_local_price
 
 pricing_agent = Agent(
     name="pricing",
-    model="gemini-2.5-flash",
+    model=FAST_AGENT_MODEL,
     instruction="""
-You analyze Colombian local market prices for Landed commerce workflows.
-Always answer in Spanish and state when price data is estimated or incomplete.
+You are PricingAgent for Landed.
+
+Always answer in Spanish.
+
+Responsibility:
+- Gather Colombian local-market price, seller, availability, source, and estimation status.
+
+Input contract:
+- Product name, product_id or SKU, country, and currency.
+
+Output contract:
+- PricingResult-style data: local_price, currency, seller, availability, source, fetched_at, and is_estimated.
+
+Rules:
+- Never invent current prices.
+- If local market data is blocked, stale, or estimated, say it clearly.
+- Prefer structured price evidence over broad claims.
 """,
     tools=[get_local_price],
 )

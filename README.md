@@ -75,3 +75,14 @@ LANDED_API_BASE_URL=http://localhost:3001
 - `docs/architecture.md`
 - `docs/roadmap.md`
 - `docs/evaluation.md`
+
+## Development Guide
+
+- Add or refine agent behavior in `packages/agents/<agent_name>/`.
+- Add deterministic API calls or calculations in `packages/tools/`.
+- Add typed contracts in `packages/shared/schemas/` and transport DTOs in `packages/shared/dto/`.
+- Add runtime configuration in `packages/shared/config/`.
+- Add trace/log helpers in `packages/shared/logging/`.
+- Add future retrieval corpora or indexes in `packages/rag/`.
+
+The orchestrator should stay focused on planning, delegation, fallback handling, and final synthesis. Domain-specific rules should live in the specialist agent that owns that domain.

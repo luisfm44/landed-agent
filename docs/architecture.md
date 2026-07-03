@@ -27,3 +27,60 @@
 
 - Landed backend API, configured with `LANDED_API_BASE_URL`.
 - Google ADK for agent runtime.
+
+## Chapter 14 Pattern Mapping
+
+The initial implementation follows a flat supervisor architecture:
+
+- `LandedOrchestratorAgent` is the supervisor. It plans, delegates, handles fallbacks, and synthesizes the final answer.
+- Specialist agents own narrow domains: product search, audio expertise, pricing, import cost, and recommendation.
+- Tools perform concrete actions such as backend API calls, product search, price lookup, import cost lookup, and knowledge retrieval.
+- Shared schemas define the contracts that agents should exchange as the platform matures.
+
+The orchestrator prompt uses the RECAP / REASON / VERIFY loop as an internal reasoning discipline:
+
+- RECAP: identify the user goal, budget, country, constraints, and missing data.
+- REASON: choose the smallest useful set of specialist capabilities.
+- VERIFY: ensure the recommendation respects constraints and states uncertainty.
+
+## Data Contracts
+
+The first shared contracts live in `packages/shared/schemas/commerce.py`:
+
+- `UserShoppingIntent`
+- `ProductCandidate`
+- `TechnicalAnalysis`
+- `PricingResult`
+- `ImportCostResult`
+- `RecommendationResult`
+
+The lightweight agent transport DTOs live in `packages/shared/dto/agent_io.py`:
+
+- `AgentTask`
+- `AgentResult`
+
+These contracts are intentionally small. They give each agent a stable vocabulary without forcing a full workflow engine too early.
+
+## Fault Tolerance
+
+Tools return normalized dictionaries with:
+
+- `ok`
+- `trace_id`
+- `source`
+- `data` or `error`
+
+The API client includes configurable timeout, retry count, and exponential backoff. The orchestrator is instructed to continue with partial evidence when pricing, import cost, product search, or RAG retrieval are unavailable.
+
+## Next Architecture Step
+
+Today the orchestrator calls specialist capabilities as tools. The next step is to wrap specialist agents with ADK `AgentTool`, so the system follows the full Agent Delegates to Agent pattern:
+
+```text
+LandedOrchestratorAgent
+  -> ProductSearchAgent
+  -> AudioExpertAgent
+  -> PricingAgent
+  -> ImportCostAgent
+  -> RecommendationAgent
+```
