@@ -1,5 +1,8 @@
 from packages.shared.schemas.agent_response_schema import AgentResponse
 from packages.shared.schemas.commerce import (
+    AgentConfidence,
+    DealAssessmentResult,
+    EvidenceSource,
     ImportCostResult,
     PricingResult,
     ProductCandidate,
@@ -21,6 +24,9 @@ from packages.shared.schemas.recommendation_schema import (
 
 __all__ = [
     "AgentResponse",
+    "AgentConfidence",
+    "DealAssessmentResult",
+    "EvidenceSource",
     "ImportCostResult",
     "PricingResult",
     "PricingBundle",
