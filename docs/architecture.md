@@ -28,7 +28,7 @@
 - Landed backend API, configured with `LANDED_API_BASE_URL`.
 - Google ADK for agent runtime.
 
-## Chapter 14 Pattern Mapping
+## Suggested patterns Mapping
 
 The initial implementation follows a flat supervisor architecture:
 
