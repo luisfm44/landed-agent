@@ -1,18 +1,13 @@
-import os
-
 import requests
-from dotenv import load_dotenv
 
-load_dotenv()
-
-LANDED_API_BASE_URL = os.getenv("LANDED_API_BASE_URL", "http://localhost:3001")
+from packages.shared.config import LANDED_API_BASE_URL
 
 
-def call_landed_api(path: str, params: dict) -> dict:
+def call_landed_api(path: str, params: dict | None = None) -> dict:
     try:
         response = requests.get(
             f"{LANDED_API_BASE_URL}{path}",
-            params=params,
+            params=params or {},
             timeout=60,
         )
         response.raise_for_status()
