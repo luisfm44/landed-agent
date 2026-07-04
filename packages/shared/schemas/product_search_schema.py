@@ -4,15 +4,15 @@ from packages.shared.schemas.commerce import ProductCandidate
 
 
 class ProductSearchRequest(BaseModel):
+    query: str
     category: str | None = None
     budget: float | None = None
     currency: str = "USD"
-    use_case: str | None = None
-    preferences: list[str] = Field(default_factory=list)
+    country: str = "Colombia"
     constraints: list[str] = Field(default_factory=list)
 
 
 class ProductSearchResult(BaseModel):
-    candidates: list[ProductCandidate] = Field(default_factory=list)
-    missing_filters: list[str] = Field(default_factory=list)
+    products: list[ProductCandidate] = Field(default_factory=list)
+    source: str
     confidence: float | None = Field(default=None, ge=0, le=1)

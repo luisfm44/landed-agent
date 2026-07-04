@@ -1,114 +1,76 @@
 from typing import Literal
-
 from pydantic import BaseModel, Field
 
 
-RecommendationVerdict = Literal[
-    "Importar",
-    "Comprar local",
-    "Esperar",
-    "Revisar manualmente",
-]
+class UserShoppingIntent(BaseModel):
+    query: str
+    product_name: str | None = None
+    category: str | None = None
+    use_case: str | None = None
+    budget: float | None = None
+    currency: str = "USD"
+    country: str = "Colombia"
+    constraints: list[str] = Field(default_factory=list)
+
+
+class ProductCandidate(BaseModel):
+    product_id: str
+    name: str
+    brand: str
+    category: str
+    estimated_price_usd: float | None = None
+    availability: str | None = None
+
+
+class TechnicalAnalysis(BaseModel):
+    product_id: str
+    use_case_fit: Literal["poor", "acceptable", "good", "excellent"]
+    pros: list[str]
+    cons: list[str]
+    notes: str
+    confidence: float = Field(ge=0, le=1)
+
+
+class PricingResult(BaseModel):
+    product_id: str
+    local_price_cop: float | None = None
+    local_price_usd: float | None = None
+    source: str
+    confidence: float = Field(ge=0, le=1)
+
+
+class ImportCostResult(BaseModel):
+    product_id: str
+    base_price_usd: float
+    shipping_usd: float
+    taxes_usd: float
+    total_landed_cost_usd: float
+    confidence: float = Field(ge=0, le=1)
 
 
 class EvidenceSource(BaseModel):
-    source_id: str | None = None
-    source_type: str = Field(description="Origin type, such as api, rag, user, seller, or estimate.")
-    name: str
-    url: str | None = None
-    retrieved_at: str | None = None
-    is_estimated: bool = False
+    source: str
+    description: str
+    confidence: float = Field(ge=0, le=1)
 
 
 class AgentConfidence(BaseModel):
     score: float = Field(ge=0, le=1)
-    rationale: str
-    missing_evidence: list[str] = Field(default_factory=list)
-    uncertainty_notes: list[str] = Field(default_factory=list)
-
-
-class UserShoppingIntent(BaseModel):
-    query: str = Field(description="Original user request.")
-    category: str | None = Field(default=None, description="Product category.")
-    use_case: str | None = Field(default=None, description="Primary user use case.")
-    budget: float | None = Field(default=None, description="Maximum budget amount.")
-    currency: str = Field(default="USD", description="Budget currency.")
-    country: str = Field(default="Colombia", description="Destination/local market.")
-    constraints: list[str] = Field(default_factory=list)
-    preferences: list[str] = Field(default_factory=list)
-
-
-class ProductCandidate(BaseModel):
-    product_id: str | None = None
-    name: str
-    brand: str | None = None
-    category: str | None = None
-    price: float | None = None
-    currency: str | None = None
-    source: str | None = None
-    url: str | None = None
-    is_accessory: bool = False
-    confidence: float | None = Field(default=None, ge=0, le=1)
-
-
-class TechnicalAnalysis(BaseModel):
-    product_id: str | None = None
-    product_name: str
-    use_case_fit: str
-    strengths: list[str] = Field(default_factory=list)
-    weaknesses: list[str] = Field(default_factory=list)
-    warnings: list[str] = Field(default_factory=list)
-    confidence: float | None = Field(default=None, ge=0, le=1)
-
-
-class PricingResult(BaseModel):
-    product_id: str | None = None
-    product_name: str
-    local_price: float | None = None
-    currency: str = "COP"
-    seller: str | None = None
-    availability: str | None = None
-    source: str | None = None
-    fetched_at: str | None = None
-    is_estimated: bool = True
-
-
-class ImportCostResult(BaseModel):
-    product_id: str | None = None
-    product_name: str
-    base_price: float | None = None
-    shipping: float | None = None
-    taxes: float | None = None
-    total_landed_cost: float | None = None
-    currency: str = "COP"
-    assumptions: list[str] = Field(default_factory=list)
-    risk_notes: list[str] = Field(default_factory=list)
-    is_estimated: bool = True
+    reason: str
 
 
 class DealAssessmentResult(BaseModel):
-    product_id: str | None = None
-    product_name: str
-    verdict: RecommendationVerdict
-    rationale: str
-    evidence: list[EvidenceSource] = Field(default_factory=list)
-    risks: list[str] = Field(default_factory=list)
-    alternatives: list[str] = Field(default_factory=list)
-    confidence: AgentConfidence | None = None
-
-
-class RecommendationItem(BaseModel):
-    product_id: str | None = None
-    product_name: str
-    verdict: RecommendationVerdict
-    rank: int
-    rationale: str
-    tradeoffs: list[str] = Field(default_factory=list)
+    product_id: str
+    is_good_deal: bool
+    reason: str
+    risk_factors: list[str]
+    confidence: float = Field(ge=0, le=1)
 
 
 class RecommendationResult(BaseModel):
-    verdict: RecommendationVerdict
-    summary: str
-    items: list[RecommendationItem] = Field(default_factory=list)
-    missing_data: list[str] = Field(default_factory=list)
-    next_steps: list[str] = Field(default_factory=list)
+    top_pick: str | None
+    alternatives: list[str] = Field(default_factory=list)
+    recommendation: str
+    evidence: list[EvidenceSource] = Field(default_factory=list)
+    uncertainty: list[str] = Field(default_factory=list)
+    confidence: float = Field(ge=0, le=1)
