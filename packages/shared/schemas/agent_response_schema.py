@@ -10,10 +10,11 @@ class ToolResponse(BaseModel):
     error: str | None = None
 
 class AgentResponse(BaseModel):
-    agent_name: str
     ok: bool
+    trace_id: str
+    agent_name: str
     confidence: float | None = Field(default=None, ge=0, le=1)
-    output: dict = Field(default_factory=dict)
+    output: dict[str, Any] = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
 
