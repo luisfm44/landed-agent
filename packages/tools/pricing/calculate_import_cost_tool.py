@@ -8,7 +8,7 @@ def calculate_import_cost(query: str, trace_id: str) -> ToolResponse:
     This currently reuses the comparison endpoint. Keep this tool boundary so
     a dedicated import-cost service can replace it later without agent changes.
     """
-    raw_response = call_landed_api("/compare", {"q": query})
+    raw_response = call_landed_api("/compare", {"q": query}, trace_id=trace_id)
     raw_response["tool"] = "calculate_import_cost"
     
     return to_tool_response(

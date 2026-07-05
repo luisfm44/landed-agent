@@ -5,7 +5,7 @@ from packages.shared.schemas.agent_response_schema import ToolResponse
 
 def get_local_price(query: str, trace_id: str) -> ToolResponse:
     """Get Colombian local-market price context for a product query."""
-    raw_response = call_landed_api("/compare", {"q": query})
+    raw_response = call_landed_api("/compare", {"q": query}, trace_id=trace_id)
     raw_response["tool"] = "get_local_price"
     
     return to_tool_response(

@@ -23,11 +23,19 @@ def to_tool_response(
                 or "Tool call failed"
             ),
         )
+    
+    payload = raw_response.get("data", raw_response)
+
+    if isinstance(payload, dict):
+        payload = {
+            **payload, 
+            "tool": raw_response.get("tool"),
+        }
 
     return ToolResponse(
         ok = True,
         trace_id = trace_id,
         source = source,
-        data = raw_response,
+        data = payload,
         error = None,
     )
