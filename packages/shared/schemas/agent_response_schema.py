@@ -1,5 +1,6 @@
-from pydantic import BaseModel, Field
 from typing import Any
+
+from pydantic import BaseModel, Field
 
 
 class ToolResponse(BaseModel):
@@ -8,6 +9,7 @@ class ToolResponse(BaseModel):
     source: str
     data: dict[str, Any] | None = None
     error: str | None = None
+
 
 class AgentResponse(BaseModel):
     ok: bool
@@ -18,15 +20,18 @@ class AgentResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
 
+
 class AgentTask(BaseModel):
     trace_id: str
     task_type: str
-    payload: dict[str, Any]
+    payload: dict[str, Any] = Field(default_factory=dict)
+
 
 class AgentResult(BaseModel):
     ok: bool
     trace_id: str
     agent_name: str
-    dtat: dict[str, Any] | None = None
-    error: str | None = None
+    data: dict[str, Any] = Field(default_factory=dict)
+    warnings: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
     confidence: float | None = Field(default=None, ge=0, le=1)
