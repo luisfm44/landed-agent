@@ -1,8 +1,8 @@
-from packages.tools.pricing.get_local_price_tool import get_local_price
 from packages.tools.pricing.calculate_import_cost_tool import calculate_import_cost
+from packages.tools.pricing.get_local_price_tool import get_local_price
 
 
-def test_get_local_price_returns_tool_response(monkeypatch):
+def test_get_local_price_returns_normalized_dict(monkeypatch):
     def fake_call_landed_api(path, params=None, trace_id=None):
         return {
             "ok": True,
@@ -19,16 +19,16 @@ def test_get_local_price_returns_tool_response(monkeypatch):
         fake_call_landed_api,
     )
 
-    result = get_local_price("dt 770 pro", "trace-test")
+    result = get_local_price("dt 770 pro")
 
-    assert result.ok is True
-    assert result.trace_id == "trace-test"
-    assert result.source == "landed_backend:/compare"
-    assert result.data is not None
-    assert result.data["tool"] == "get_local_price"
+    assert result["ok"] is True
+    assert result["trace_id"]
+    assert result["source"] == "landed_backend:/compare"
+    assert result["data"] is not None
+    assert result["data"]["tool"] == "get_local_price"
 
 
-def test_calculate_import_cost_returns_tool_response(monkeypatch):
+def test_calculate_import_cost_returns_normalized_dict(monkeypatch):
     def fake_call_landed_api(path, params=None, trace_id=None):
         return {
             "ok": True,
@@ -46,10 +46,10 @@ def test_calculate_import_cost_returns_tool_response(monkeypatch):
         fake_call_landed_api,
     )
 
-    result = calculate_import_cost("dt 770 pro", "trace-test")
+    result = calculate_import_cost("dt 770 pro")
 
-    assert result.ok is True
-    assert result.trace_id == "trace-test"
-    assert result.source == "landed_backend:/compare"
-    assert result.data is not None
-    assert result.data["tool"] == "calculate_import_cost"
+    assert result["ok"] is True
+    assert result["trace_id"]
+    assert result["source"] == "landed_backend:/compare"
+    assert result["data"] is not None
+    assert result["data"]["tool"] == "calculate_import_cost"
