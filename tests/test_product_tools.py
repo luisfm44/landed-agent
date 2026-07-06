@@ -4,6 +4,10 @@ from packages.tools.product.search_products_tool import search_products
 
 def test_search_products_returns_normalized_dict(monkeypatch):
     def fake_call_landed_api(path, params=None, trace_id=None):
+        assert path == "/search"
+        assert params == {"q": "dt 770 pro"}
+        assert trace_id is not None
+
         return {
             "ok": True,
             "trace_id": trace_id,
@@ -30,10 +34,16 @@ def test_search_products_returns_normalized_dict(monkeypatch):
     assert result["source"] == "landed_backend:/search"
     assert result["data"] is not None
     assert result["data"]["tool"] == "search_products"
+    assert result["data"]["products"][0]["name"] == "Beyerdynamic DT 770 Pro"
+    assert result["error"] is None
 
 
 def test_get_product_details_returns_normalized_dict(monkeypatch):
     def fake_call_landed_api(path, params=None, trace_id=None):
+        assert path == "/products/resolve/preview"
+        assert params == {"q": "dt 770 pro"}
+        assert trace_id is not None
+
         return {
             "ok": True,
             "trace_id": trace_id,
@@ -58,3 +68,5 @@ def test_get_product_details_returns_normalized_dict(monkeypatch):
     assert result["source"] == "landed_backend:/products/resolve/preview"
     assert result["data"] is not None
     assert result["data"]["tool"] == "get_product_details"
+    assert result["data"]["product"]["name"] == "Beyerdynamic DT 770 Pro"
+    assert result["error"] is None

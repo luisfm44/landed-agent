@@ -103,6 +103,15 @@ def call_landed_api(
 
     except requests.exceptions.HTTPError as error:
         status_code = error.response.status_code if error.response is not None else None
+        response_body = None
+
+        if error.response is not None:
+            try:
+                response_body = error.response.json()
+            except ValueError:
+                response_body = error.response.text[:500]
+        else:
+            response_body = None
 
         log_agent_event(
             logger,
@@ -111,6 +120,7 @@ def call_landed_api(
             path=normalized_path,
             status_code=status_code,
             message=str(error),
+            response_body=response_body,
         )
 
         return {
@@ -120,6 +130,7 @@ def call_landed_api(
             "error": "LANDED_HTTP_ERROR",
             "message": str(error),
             "status_code": status_code,
+            "response_body": response_body,
         }
 
     except requests.exceptions.RequestException as error:

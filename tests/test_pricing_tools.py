@@ -4,6 +4,10 @@ from packages.tools.pricing.get_local_price_tool import get_local_price
 
 def test_get_local_price_returns_normalized_dict(monkeypatch):
     def fake_call_landed_api(path, params=None, trace_id=None):
+        assert path == "/compare"
+        assert params == {"q": "dt 770 pro"}
+        assert trace_id is not None
+
         return {
             "ok": True,
             "trace_id": trace_id,
@@ -26,10 +30,17 @@ def test_get_local_price_returns_normalized_dict(monkeypatch):
     assert result["source"] == "landed_backend:/compare"
     assert result["data"] is not None
     assert result["data"]["tool"] == "get_local_price"
+    assert result["data"]["local_price_usd"] == 245
+    assert result["data"]["local_price_cop"] == 980000
+    assert result["error"] is None
 
 
 def test_calculate_import_cost_returns_normalized_dict(monkeypatch):
     def fake_call_landed_api(path, params=None, trace_id=None):
+        assert path == "/compare"
+        assert params == {"q": "dt 770 pro"}
+        assert trace_id is not None
+
         return {
             "ok": True,
             "trace_id": trace_id,
@@ -53,3 +64,7 @@ def test_calculate_import_cost_returns_normalized_dict(monkeypatch):
     assert result["source"] == "landed_backend:/compare"
     assert result["data"] is not None
     assert result["data"]["tool"] == "calculate_import_cost"
+    assert result["data"]["total_landed_cost_usd"] == 236
+    assert result["data"]["shipping_usd"] == 35
+    assert result["data"]["taxes_usd"] == 32
+    assert result["error"] is None

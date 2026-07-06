@@ -2,11 +2,11 @@ from google.adk.agents import Agent
 
 from packages.agents.recommendation.prompts import RECOMMENDATION_INSTRUCTIONS
 from packages.shared.config import REASONING_AGENT_MODEL
-from packages.tools import calculate_import_cost, get_local_price, retrieve_knowledge
+from packages.tools import retrieve_knowledge
 
 recommendation_agent = Agent(
     name="recommendation",
     model=REASONING_AGENT_MODEL,
     instruction=RECOMMENDATION_INSTRUCTIONS,
-    tools=[get_local_price, calculate_import_cost, retrieve_knowledge],
+    tools=[retrieve_knowledge],
 )
