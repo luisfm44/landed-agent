@@ -1,9 +1,11 @@
+from packages.shared.config.models import resolve_agent_model
 from packages.shared.config.settings import (
     FAST_AGENT_MODEL,
     LANDED_API_BACKOFF_SECONDS,
     LANDED_API_BASE_URL,
     LANDED_API_MAX_RETRIES,
     LANDED_API_TIMEOUT_SECONDS,
+    LLM_RUNTIME,
     MAX_TOOL_CALLS_PER_REQUEST,
     OLLAMA_GROUNDING_MODEL,
     OLLAMA_HOST,
@@ -17,9 +19,11 @@ __all__ = [
     "LANDED_API_BASE_URL",
     "LANDED_API_MAX_RETRIES",
     "LANDED_API_TIMEOUT_SECONDS",
+    "LLM_RUNTIME",
     "MAX_TOOL_CALLS_PER_REQUEST",
     "OLLAMA_GROUNDING_MODEL",
     "OLLAMA_HOST",
     "ORCHESTRATOR_MODEL",
     "REASONING_AGENT_MODEL",
+    "resolve_agent_model",
 ]

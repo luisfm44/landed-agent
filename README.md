@@ -77,6 +77,36 @@ Set the Landed backend URL with:
 LANDED_API_BASE_URL=http://localhost:3001
 ```
 
+### LLM runtime profiles
+
+Use one codebase for local development and Google Cloud deployment:
+
+| Profile | `LLM_RUNTIME` | Agent models | Notes |
+|---------|---------------|--------------|-------|
+| **GCP** (default) | `gcp` | `gemini-2.5-flash-lite` | Native ADK + Gemini |
+| **Local** | `local` | `llama3.1` (Ollama) | LiteLLM + `ollama_chat/` |
+
+Local example:
+
+```bash
+LLM_RUNTIME=local
+ORCHESTRATOR_MODEL=llama3.1
+FAST_AGENT_MODEL=llama3.1
+REASONING_AGENT_MODEL=llama3.1
+OLLAMA_HOST=http://localhost:11434
+```
+
+GCP example (Cloud Run, Vertex, etc.):
+
+```bash
+LLM_RUNTIME=gcp
+ORCHESTRATOR_MODEL=gemini-2.5-flash-lite
+FAST_AGENT_MODEL=gemini-2.5-flash-lite
+REASONING_AGENT_MODEL=gemini-2.5-flash-lite
+```
+
+Copy `.env.example` to `.env` and adjust the profile you need.
+
 ## Documentation
 
 - `docs/architecture.md`

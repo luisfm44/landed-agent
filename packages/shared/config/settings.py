@@ -9,6 +9,9 @@ LANDED_API_TIMEOUT_SECONDS = float(os.getenv("LANDED_API_TIMEOUT_SECONDS", "60")
 LANDED_API_MAX_RETRIES = int(os.getenv("LANDED_API_MAX_RETRIES", "2"))
 LANDED_API_BACKOFF_SECONDS = float(os.getenv("LANDED_API_BACKOFF_SECONDS", "1"))
 
+# local = Ollama via LiteLLM; gcp = Gemini via native ADK
+LLM_RUNTIME = os.getenv("LLM_RUNTIME", "gcp").strip().lower()
+
 ORCHESTRATOR_MODEL = os.getenv("ORCHESTRATOR_MODEL", "gemini-2.5-flash-lite")
 FAST_AGENT_MODEL = os.getenv("FAST_AGENT_MODEL", "gemini-2.5-flash-lite")
 REASONING_AGENT_MODEL = os.getenv("REASONING_AGENT_MODEL", "gemini-2.5-flash-lite")

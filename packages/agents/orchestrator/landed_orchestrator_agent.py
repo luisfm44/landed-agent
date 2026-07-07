@@ -8,12 +8,12 @@ from packages.agents.orchestrator.prompts import ORCHESTRATOR_INSTRUCTIONS
 from packages.agents.pricing.pricing_agent import pricing_agent
 from packages.agents.product_search.product_search_agent import product_search_agent
 from packages.agents.recommendation.recommendation_agent import recommendation_agent
-from packages.shared.config import ORCHESTRATOR_MODEL
+from packages.shared.config import ORCHESTRATOR_MODEL, resolve_agent_model
 
 
 root_agent = Agent(
     name="landed_orchestrator",
-    model=ORCHESTRATOR_MODEL,
+    model=resolve_agent_model(ORCHESTRATOR_MODEL),
     instruction=ORCHESTRATOR_INSTRUCTIONS,
     tools=[
         AgentTool(agent=product_search_agent),
