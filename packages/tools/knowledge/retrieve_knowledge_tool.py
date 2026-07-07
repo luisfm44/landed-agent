@@ -1,32 +1,46 @@
-from packages.rag.retriever import retrieve_local_knowledge
 from packages.shared.logging import new_trace_id
 from packages.shared.schemas.agent_response_schema import ToolResponse
+from packages.tools.knowledge.rag_search_tool import search_knowledge
 
 
 def retrieve_knowledge(query: str) -> dict:
-    """Retrieve grounded product knowledge from the local Landed RAG corpus.
-
-    This implementation is local and does not call an LLM.
-    """
+    """Agent-facing knowledge tool with normalized ToolResponse envelope."""
     trace_id = new_trace_id()
-    matches = retrieve_local_knowledge(query=query, limit=3)
+
+    try:
+        result = search_knowledge(query=query, limit=4)
+        ok = True
+        error = None
+    except Exception as exc:
+        result = {
+            "query": query,
+            "sources": [],
+            "grounded": False,
+            "backend": "unavailable",
+        }
+        ok = False
+        error = str(exc)
+
+    backend = result.get("backend", "unknown")
+    grounded = bool(result.get("grounded"))
 
     response = ToolResponse(
-        ok=True,
+        ok=ok,
         trace_id=trace_id,
-        source="local_landed_rag",
+        source=f"landed_rag:{backend}",
         data={
             "tool": "retrieve_knowledge",
-            "query": query,
-            "matches": matches,
-            "grounded": bool(matches),
+            "query": result.get("query", query),
+            "sources": result.get("sources", []),
+            "grounded": grounded,
+            "backend": backend,
             "message": (
-                "Knowledge retrieved from local Landed corpus."
-                if matches
-                else "No relevant local knowledge found."
+                f"Knowledge retrieved using {backend}."
+                if grounded
+                else "No relevant knowledge found."
             ),
         },
-        error=None,
+        error=error,
     )
 
     return response.model_dump()

@@ -1,154 +1,81 @@
-from pathlib import Path
 from typing import Any
 
-
-RAG_ROOT = Path(__file__).resolve().parent
-
-SEARCH_DIRECTORIES = [
-    RAG_ROOT / "buying_guides",
-    RAG_ROOT / "product_knowledge",
-    RAG_ROOT / "reviews",
-]
+from packages.tools.knowledge.vector_store import get_collection
 
 
-def _read_text_file(file_path: Path) -> str:
-    """Read text files defensively across common encodings."""
-    encodings = ["utf-8", "utf-8-sig", "latin-1", "cp1252"]
+def _first_query_row(results: Any, key: str) -> list[Any]:
+    """Safely read the first result row from a Chroma query response."""
+    values = results.get(key)
+    if not values:
+        return []
 
-    for encoding in encodings:
-        try:
-            return file_path.read_text(encoding=encoding)
-        except UnicodeDecodeError:
-            continue
-
-    return file_path.read_text(encoding="utf-8", errors="replace")
+    first_row = values[0]
+    return first_row if first_row is not None else []
 
 
-def _tokenize(text: str) -> set[str]:
-    """Tokenize text into normalized lowercase terms."""
+def retrieve_context(
+    query: str,
+    limit: int = 4,
+) -> list[dict[str, Any]]:
+    """Retrieve grounded context using ChromaDB + Ollama embeddings.
+
+    This is the semantic retriever for the Landed RAG layer.
+    It does not depend on agents directly.
+    """
+    if not query or not query.strip():
+        return []
+
+    collection = get_collection()
+
+    results = collection.query(
+        query_texts=[query],
+        n_results=limit,
+        include=["documents", "metadatas", "distances"],
+    )
+
+    documents = _first_query_row(results, "documents")
+    metadatas = _first_query_row(results, "metadatas")
+    distances = _first_query_row(results, "distances")
+
+    retrieved: list[dict[str, Any]] = []
+
+    for document, metadata, distance in zip(documents, metadatas, distances):
+        retrieved.append(
+            {
+                "content": document,
+                "metadata": metadata or {},
+                "distance": float(distance) if distance is not None else None,
+            }
+        )
+
+    return retrieved
+
+
+def retrieve_knowledge(
+    query: str,
+    limit: int = 4,
+) -> dict[str, Any]:
+    """Stable contract for tools and agents.
+
+    Agents should call this contract indirectly through tools,
+    not ChromaDB directly.
+    """
+    sources = retrieve_context(query=query, limit=limit)
+
     return {
-        token.strip(".,:;!?()[]{}\"'").lower()
-        for token in text.split()
-        if len(token.strip(".,:;!?()[]{}\"'")) > 2
+        "query": query,
+        "sources": sources,
+        "grounded": bool(sources),
     }
 
 
-def _split_markdown_sections(content: str) -> list[tuple[str, str]]:
-    """Split markdown content into sections using headings.
+if __name__ == "__main__":
+    result = retrieve_knowledge(
+        "What headphones are good for classical music and competitive gaming?"
+    )
 
-    Supports:
-    - # Main title
-    - ## Section title
-
-    Each section is returned as:
-    (section_title, section_content)
-    """
-    sections: list[tuple[str, str]] = []
-    current_title = "General"
-    current_lines: list[str] = []
-
-    for line in content.splitlines():
-        if line.startswith("## "):
-            if current_lines:
-                sections.append(
-                    (
-                        current_title,
-                        "\n".join(current_lines).strip(),
-                    )
-                )
-
-            current_title = line.replace("## ", "").strip()
-            current_lines = []
-
-        elif line.startswith("# "):
-            current_title = line.replace("# ", "").strip()
-
-        else:
-            current_lines.append(line)
-
-    if current_lines:
-        sections.append(
-            (
-                current_title,
-                "\n".join(current_lines).strip(),
-            )
-        )
-
-    return [
-        (title, body)
-        for title, body in sections
-        if body
-    ]
-
-
-def _load_documents() -> list[dict[str, str]]:
-    """Load markdown documents from the local RAG directories."""
-    documents: list[dict[str, str]] = []
-
-    for directory in SEARCH_DIRECTORIES:
-        if not directory.exists():
-            continue
-
-        for file_path in directory.glob("*.md"):
-            content = _read_text_file(file_path)
-            sections = _split_markdown_sections(content)
-
-            for section_title, section_content in sections:
-                documents.append(
-                    {
-                        "source": str(file_path.relative_to(RAG_ROOT)),
-                        "title": section_title,
-                        "content": section_content,
-                    }
-                )
-
-    return documents
-
-
-def retrieve_local_knowledge(
-    query: str,
-    limit: int = 3,
-) -> list[dict[str, Any]]:
-    """Retrieve grounded local knowledge using lexical overlap.
-
-    This is a lightweight local grounding layer.
-
-    It searches markdown files in:
-    - buying_guides
-    - product_knowledge
-    - reviews
-
-    Later this can be replaced with embeddings/vector search without changing
-    the retrieve_knowledge tool contract.
-    """
-    query_tokens = _tokenize(query)
-
-    if not query_tokens:
-        return []
-
-    documents = _load_documents()
-    scored: list[dict[str, Any]] = []
-
-    for document in documents:
-        searchable_text = f"{document['title']} {document['content']}"
-        document_tokens = _tokenize(searchable_text)
-
-        overlap = query_tokens.intersection(document_tokens)
-        score = len(overlap) / max(len(query_tokens), 1)
-
-        if score > 0:
-            scored.append(
-                {
-                    "title": document["title"],
-                    "content": document["content"],
-                    "source": document["source"],
-                    "score": round(score, 3),
-                    "matched_terms": sorted(overlap),
-                }
-            )
-
-    return sorted(
-        scored,
-        key=lambda item: item["score"],
-        reverse=True,
-    )[:limit]
+    for index, source in enumerate(result["sources"], start=1):
+        print(f"\n--- Source {index} ---")
+        print("Metadata:", source["metadata"])
+        print("Distance:", source["distance"])
+        print(str(source["content"])[:500])

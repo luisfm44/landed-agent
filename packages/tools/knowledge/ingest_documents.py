@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import TypedDict
 
-from packages.rag.retriever import _read_text_file, _split_markdown_sections
+from packages.rag.local_retriever import _read_text_file, _split_markdown_sections
 from packages.tools.knowledge.vector_store import KNOWLEDGE_BASE_DIR, get_collection
 
 
