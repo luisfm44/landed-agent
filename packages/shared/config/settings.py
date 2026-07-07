@@ -14,3 +14,6 @@ FAST_AGENT_MODEL = os.getenv("FAST_AGENT_MODEL", "gemini-2.5-flash-lite")
 REASONING_AGENT_MODEL = os.getenv("REASONING_AGENT_MODEL", "gemini-2.5-flash-lite")
 
 MAX_TOOL_CALLS_PER_REQUEST = int(os.getenv("MAX_TOOL_CALLS_PER_REQUEST", "12"))
+
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+OLLAMA_GROUNDING_MODEL = os.getenv("OLLAMA_GROUNDING_MODEL", "llama3.1")

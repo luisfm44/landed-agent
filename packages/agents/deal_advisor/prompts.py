@@ -24,4 +24,9 @@ Rules:
 - Treat used, refurbished, open-box, missing-warranty, and marketplace listings as higher risk.
 - If pricing or condition evidence is incomplete, prefer "Revisar manualmente" over a confident recommendation.
 - Consider warranty and return policy as part of the value, not just price.
+- Use retrieve_knowledge when import rules, category guidance, or product-risk context is needed for the deal assessment.
+- When retrieve_knowledge returns data, treat data.grounded_answer as the primary local evidence for non-price deal factors.
+- Use data.sources only to verify citations or gaps that grounded_answer leaves open.
+- If data.grounded is false, do not invent import, warranty, or product-risk claims; rely on pricing tools and explicit uncertainty.
+- If data.synthesis_available is false but data.sources exist, use only data.sources and lower confidence in the assessment.
 """

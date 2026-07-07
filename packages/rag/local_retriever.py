@@ -2,7 +2,43 @@ from typing import Any
 
 from packages.knowledge_base.loader import load_knowledge_sections
 
-DEFAULT_MIN_LEXICAL_SCORE = 0.25
+DEFAULT_MIN_LEXICAL_SCORE = 0.35
+
+STOP_WORDS = {
+    "about",
+    "and",
+    "are",
+    "best",
+    "can",
+    "como",
+    "con",
+    "cual",
+    "de",
+    "del",
+    "el",
+    "en",
+    "for",
+    "has",
+    "how",
+    "is",
+    "la",
+    "las",
+    "los",
+    "not",
+    "para",
+    "por",
+    "que",
+    "the",
+    "this",
+    "what",
+    "when",
+    "where",
+    "which",
+    "who",
+    "why",
+    "with",
+    "you",
+}
 
 
 def _tokenize(text: str) -> set[str]:
@@ -11,6 +47,7 @@ def _tokenize(text: str) -> set[str]:
         token.strip(".,:;!?()[]{}\"'").lower()
         for token in text.split()
         if len(token.strip(".,:;!?()[]{}\"'")) > 2
+        and token.strip(".,:;!?()[]{}\"'").lower() not in STOP_WORDS
     }
 
 
