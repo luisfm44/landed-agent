@@ -25,6 +25,7 @@ For visual flow diagrams, see [architecture-diagram.md](./architecture-diagram.m
 - `packages/rag`: retriever layer, grounding service, Chroma embeddings storage, and local lexical search.
 - `packages/shared`: shared schemas, DTOs, logging, configuration, errors, and observability utilities.
 - `packages/mcp`: MCP exposure layer that reuses the same domain tools as ADK and LangGraph.
+- `packages/registry`: explicit tool and agent registry with permissions and bootstrap validation.
 - `scripts/landed_api_mock.py`: local Landed API mock for product, pricing, and import tool development.
 
 ## Multi-Agent Topology
@@ -180,6 +181,108 @@ Direct ADK inspection remains available for development only:
 | Business orchestration | Delegates through `adk_orchestrator_node` | `landed_orchestrator` delegates to specialists |
 | Specialist execution | Through `adk_orchestrator_node` | `AgentTool` to specialist agents |
 | Shared capabilities | Lab graph calls `retrieve_knowledge` directly | Specialists call all domain tools |
+
+## System-Level Layer: Tool & Agent Registry
+
+`packages/registry` is the first implemented system-level pattern. It makes the Landed tool and agent ecosystem explicit, governable, and testable instead of implicit in imports and hardcoded MCP wrappers.
+
+### Why it exists
+
+Before the registry, the platform already had:
+
+- tools in `packages/tools/*`;
+- agents in `packages/agents/*`;
+- MCP wrappers in `packages/mcp/landed_mcp_server.py`;
+- LangGraph nodes in `packages/graphs/*`.
+
+The registry turns that implicit layout into an explicit contract that future system-level layers can enforce:
+
+- Authentication & Authorization
+- API Gateway Enforcement
+- Compliance Monitoring
+- Event-Driven Reactivity
+- A2A exposure and consumption
+
+### Package layout
+
+```text
+packages/registry/
+├── tool_registry.py      # tool definitions, MCP names, allowed agents
+├── agent_registry.py     # agent definitions, allowed tools, A2A flags
+├── permissions.py        # can_agent_use_tool, can_mcp_call_tool
+└── bootstrap.py          # validate_registry() against live ADK + MCP
+```
+
+### Tool registry contract
+
+| Internal tool | MCP tool | Allowed agents |
+|---------------|----------|----------------|
+| `retrieve_knowledge` | `retrieve_landed_knowledge` | `audio_expert`, `recommendation`, `deal_advisor` |
+| `search_products` | `search_landed_products` | `product_search` |
+| `get_product_details` | `get_landed_product_details` | `product_search` |
+| `get_local_price` | `get_landed_local_price` | `pricing`, `deal_advisor` |
+| `calculate_import_cost` | `calculate_landed_import_cost` | `import_cost`, `deal_advisor` |
+
+### Agent registry contract
+
+| Agent | Runtime | A2A-ready | Direct tools |
+|-------|---------|-----------|--------------|
+| `landed_orchestrator` | ADK | No | delegates via `AgentTool` |
+| `product_search` | ADK | Yes | `search_products`, `get_product_details` |
+| `audio_expert` | ADK | Yes | `retrieve_knowledge` |
+| `pricing` | ADK | Yes | `get_local_price` |
+| `import_cost` | ADK | Yes | `calculate_import_cost` |
+| `deal_advisor` | ADK | Yes | `get_local_price`, `calculate_import_cost`, `retrieve_knowledge` |
+| `recommendation` | ADK | Yes | `retrieve_knowledge` |
+
+### Bootstrap validation
+
+`bootstrap.py` prevents drift between registry and runtime code:
+
+1. tool and agent registries are internally consistent;
+2. live ADK specialist agents expose exactly the tools declared in the registry;
+3. `landed_orchestrator` delegates to the six expected specialists;
+4. MCP exposes exactly the five registry-backed MCP tools.
+
+```bash
+.venv/bin/python -c "from packages.registry import assert_registry_is_valid; assert_registry_is_valid()"
+.venv/bin/pytest tests/test_registry.py -q
+```
+
+### Cross-cutting role
+
+```mermaid
+flowchart TB
+    REG[Tool & Agent Registry]
+
+    subgraph runtime [Runtime layers]
+        LG[LangGraph]
+        ADK[ADK agents]
+        MCP[landed-domain-mcp]
+        TOOLS[packages/tools]
+    end
+
+    REG --> LG
+    REG --> ADK
+    REG --> MCP
+    REG --> TOOLS
+
+    LG --> ADK
+    ADK --> TOOLS
+    MCP --> TOOLS
+```
+
+The registry does not execute business logic. It declares what exists, who may use it, and validates that the codebase still matches that declaration.
+
+### Planned system-level extensions
+
+| Pattern | Status | Target package |
+|---------|--------|----------------|
+| Tool & Agent Registry | Implemented | `packages/registry/` |
+| Authentication & Authorization | Planned | `packages/security/` |
+| API Gateway Enforcement | Planned | `packages/gateway/` |
+| Compliance Monitoring | Planned | `packages/compliance/` |
+| Event-Driven Reactivity | Planned | `packages/events/` |
 
 ## MCP Exposure Layer
 
@@ -496,6 +599,7 @@ Near-term improvements that fit the current architecture:
 - Add evaluation harnesses for grounded answers and out-of-domain refusal behavior.
 - Expand `packages/knowledge_base/` beyond audio as new commerce categories are added.
 - Add richer LangGraph routing for explicit pricing/import/product branches before ADK delegation.
+- Implement remaining system-level patterns on top of `packages/registry/`: authorization, compliance, gateway, and events.
 
 ## Architecture Principle
 

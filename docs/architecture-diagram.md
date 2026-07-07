@@ -2,14 +2,18 @@
 
 Visual reference for the Landed multi-agent commerce platform. These diagrams complement [architecture.md](./architecture.md).
 
-> **Updated:** default LangGraph flow now uses `adk_orchestrator_node` + `adk_runner.py`. Lab graph remains behind `build_landed_graph(use_adk=False)`.
+> **Updated:** default LangGraph flow uses `adk_orchestrator_node` + `adk_runner.py`. System-level registry lives in `packages/registry/`.
 
-## 1. Platform layers
+## 1. Platform layers with registry
 
-Four cooperating layers, three entry points, one shared tool ecosystem.
+Four cooperating layers, three entry points, one shared tool ecosystem, and one cross-cutting registry.
 
 ```mermaid
 flowchart TB
+    subgraph system [System-level layer]
+        REG[Tool & Agent Registry<br/>packages/registry]
+    end
+
     subgraph entry [Entry points]
         USER[User]
         MCPCLIENT[Cursor / MCP client]
@@ -42,6 +46,11 @@ flowchart TB
         API[Landed API / mock :3001]
         RAG[RAG + grounding]
     end
+
+    REG --> LG
+    REG --> ORCH
+    REG --> MCP
+    REG --> TOOLS
 
     USER --> LG
     LG --> GO --> STATE
@@ -251,6 +260,7 @@ flowchart LR
 ```mermaid
 flowchart TB
     subgraph packages [packages/]
+        REG[registry/<br/>tool + agent contracts]
         GRAPHS[graphs/<br/>state, nodes, adk_runner]
         AGENTS[agents/<br/>orchestrator + specialists]
         MCP[mcp/<br/>landed-domain-mcp]
@@ -265,6 +275,9 @@ flowchart TB
         ADKDEV[run_adk_agent.py]
     end
 
+    REG --> AGENTS
+    REG --> MCP
+    REG --> TOOLS
     GRAPHS --> AGENTS
     GRAPHS --> TOOLS
     AGENTS --> TOOLS
@@ -275,7 +288,43 @@ flowchart TB
     GRAPHS --> SHARED
     AGENTS --> SHARED
     MCP --> SHARED
+    REG --> SHARED
 ```
+
+## 11. System-level registry
+
+```mermaid
+flowchart LR
+    subgraph registry [packages/registry]
+        TR[tool_registry.py]
+        AR[agent_registry.py]
+        PERM[permissions.py]
+        BOOT[bootstrap.py]
+    end
+
+    subgraph checks [Validated at startup / tests]
+        ADKCHK[ADK specialist tools]
+        MCPCHK[MCP exposed tools]
+        SYNCCHK[tool ↔ agent consistency]
+    end
+
+    TR --> PERM
+    AR --> PERM
+    TR --> BOOT
+    AR --> BOOT
+    BOOT --> ADKCHK
+    BOOT --> MCPCHK
+    BOOT --> SYNCCHK
+```
+
+### Registry responsibilities
+
+| Module | Declares |
+|--------|----------|
+| `tool_registry.py` | tool name, category, MCP name, allowed agents |
+| `agent_registry.py` | agent role, runtime, A2A flag, allowed tools |
+| `permissions.py` | `can_agent_use_tool`, `can_mcp_call_tool` |
+| `bootstrap.py` | drift detection against live ADK and MCP code |
 
 ## Related docs
 

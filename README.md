@@ -10,11 +10,14 @@ AI commerce platform for Landed. It helps Colombian users decide what to buy and
 - **Shared tools** for product search, pricing, import cost, and knowledge retrieval.
 - **MCP server** (`landed-domain-mcp`) to expose the same tools to Cursor and other MCP clients.
 - **Local API mock** for product, pricing, and import development without the real Landed backend.
+- **Tool & Agent Registry** as the explicit system-level contract for tools, agents, MCP, and future A2A permissions.
 
 ## Architecture at a glance
 
 ```mermaid
 flowchart TB
+    REG[Tool & Agent Registry]
+
     USER[User] --> LG[LangGraph]
     LG --> GO[graph_orchestrator_node]
     GO --> AO[adk_orchestrator_node]
@@ -23,6 +26,10 @@ flowchart TB
     TOOLS --> API[Landed API mock]
     TOOLS --> RAG[RAG + grounding]
     AO --> ANSWER[final_answer]
+
+    REG --> ADK
+    REG --> TOOLS
+    REG --> MCP[landed-domain-mcp]
 ```
 
 LangGraph coordinates flow and short-term memory. ADK executes specialist agents. They do not compete as two top-level orchestrators.
@@ -60,6 +67,11 @@ landed-ai-commerce-platform/
 │   │   └── embeddings/
 │   ├── mcp/                 # MCP exposure layer
 │   │   └── landed_mcp_server.py
+│   ├── registry/            # Tool & agent registry (system-level layer)
+│   │   ├── tool_registry.py
+│   │   ├── agent_registry.py
+│   │   ├── permissions.py
+│   │   └── bootstrap.py
 │   └── shared/              # Schemas, config, logging, observability
 ├── scripts/
 │   ├── landed_api_mock.py   # Local Landed API for dev
@@ -150,6 +162,33 @@ Run manually:
 ```
 
 Cursor project config: `.cursor/mcp.json`. Enable `landed-domain-mcp` in Cursor MCP settings.
+
+## System-level registry
+
+Entry point: `packages.registry`
+
+The registry is the explicit source of truth for:
+
+- which tools exist and which agents may use them;
+- which MCP tools are exposed and how they map to internal tools;
+- which ADK specialists exist and which are planned for A2A exposure;
+- bootstrap validation that keeps ADK agents and MCP aligned with the registry.
+
+| Module | Role |
+|--------|------|
+| `tool_registry.py` | Tool definitions, MCP names, allowed agents |
+| `agent_registry.py` | Agent definitions, allowed tools, A2A flags |
+| `permissions.py` | `can_agent_use_tool`, `can_mcp_call_tool` |
+| `bootstrap.py` | `validate_registry()` against live ADK + MCP code |
+
+Validate the registry:
+
+```bash
+.venv/bin/python -c "from packages.registry import assert_registry_is_valid; assert_registry_is_valid(); print('registry ok')"
+.venv/bin/pytest tests/test_registry.py -q
+```
+
+Planned next system-level layers: authorization, compliance monitoring, API gateway, and event-driven reactivity.
 
 ## Local development services
 
@@ -287,6 +326,7 @@ Use `build_landed_graph(use_adk=False)` for the grounding-only lab graph.
 - Add deterministic API calls or calculations in `packages/tools/`.
 - Add graph nodes or edges in `packages/graphs/`.
 - Bridge LangGraph to ADK in `packages/graphs/adk_runner.py`.
+- Update tool/agent permissions in `packages/registry/` when adding capabilities.
 - Add markdown knowledge in `packages/knowledge_base/`, then re-run ingest.
 - Expose new capabilities through `packages/mcp/landed_mcp_server.py` when needed for external clients.
 - Add typed contracts in `packages/shared/schemas/` and transport DTOs in `packages/shared/dto/`.
