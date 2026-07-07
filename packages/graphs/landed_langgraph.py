@@ -2,8 +2,8 @@ from langgraph.graph import END, START, StateGraph
 
 from packages.graphs.state import LandedGraphState
 from packages.graphs.nodes import (
+    graph_orchestrator_node,
     knowledge_node,
-    orchestrator_node,
     recommendation_node,
 )
 
@@ -11,12 +11,12 @@ from packages.graphs.nodes import (
 def build_landed_graph():
     graph = StateGraph(LandedGraphState)
 
-    graph.add_node("orchestrator", orchestrator_node)
+    graph.add_node("graph_orchestrator", graph_orchestrator_node)
     graph.add_node("knowledge", knowledge_node)
     graph.add_node("recommendation", recommendation_node)
 
-    graph.add_edge(START, "orchestrator")
-    graph.add_edge("orchestrator", "knowledge")
+    graph.add_edge(START, "graph_orchestrator")
+    graph.add_edge("graph_orchestrator", "knowledge")
     graph.add_edge("knowledge", "recommendation")
     graph.add_edge("recommendation", END)
 

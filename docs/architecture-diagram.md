@@ -2,15 +2,26 @@
 
 Visual reference for the Landed multi-agent commerce platform. These diagrams complement [architecture.md](./architecture.md).
 
-## 1. System overview
+## 1. Target system overview
 
-Landed exposes two orchestration entry points that share the same tools and knowledge layer.
+LangGraph is the user entry point. ADK executes specialist agents inside the graph.
 
 ```mermaid
 flowchart TB
-    USER[User query]
+    USER[User query] --> LG[LangGraph runtime<br/>build_landed_graph]
 
-    subgraph adk [ADK runtime]
+    subgraph graph [LangGraph coordination layer]
+        STATE[LandedGraphState]
+        GO[graph_orchestrator_node]
+        KN[knowledge_node]
+        RN[recommendation_node]
+    end
+
+    LG --> GO
+    GO --> STATE
+    GO --> ADK
+
+    subgraph adk [ADK execution layer]
         ORCH[landed_orchestrator<br/>root_agent]
         PS[product_search]
         AE[audio_expert]
@@ -20,24 +31,13 @@ flowchart TB
         REC[recommendation]
     end
 
-    subgraph graph [LangGraph runtime]
-        LG[build_landed_graph]
-        GN1[orchestrator_node]
-        GN2[knowledge_node]
-        GN3[recommendation_node]
-    end
-
-    USER --> ORCH
-    USER --> LG
-
+    ADK[ADK runtime] --> ORCH
     ORCH -->|AgentTool| PS
     ORCH -->|AgentTool| AE
     ORCH -->|AgentTool| PR
     ORCH -->|AgentTool| IC
     ORCH -->|AgentTool| DA
     ORCH -->|AgentTool| REC
-
-    LG --> GN1 --> GN2 --> GN3
 
     subgraph tools [Shared domain tools]
         T1[search_products]
@@ -56,7 +56,7 @@ flowchart TB
     AE --> T5
     REC --> T5
     DA --> T5
-    GN2 --> T5
+    KN --> T5
 
     T1 --> API[Landed API]
     T2 --> API
@@ -64,112 +64,91 @@ flowchart TB
     T4 --> API
     T5 --> RAG[RAG + Grounding layer]
 
-    ORCH --> USER
-    GN3 --> USER
+    ORCH --> STATE
+    KN --> STATE
+    RN --> STATE
+    RN --> USER
 ```
 
-## 2. End-to-end request flow
+## 2. Current lab graph
 
-```mermaid
-sequenceDiagram
-    autonumber
-    participant U as User
-    participant O as Orchestrator
-    participant PS as product_search
-    participant AE as audio_expert
-    participant PR as pricing
-    participant IC as import_cost
-    participant RK as retrieve_knowledge
-    participant API as Landed API
-    participant RAG as RAG + Grounding
-
-    U->>O: Shopping question
-
-    Note over O: RECAP / REASON / VERIFY
-
-    O->>PS: AgentTool — resolve product
-    PS->>API: search_products / get_product_details
-    API-->>PS: candidates
-    PS-->>O: product evidence
-
-    O->>AE: AgentTool — technical fit
-    AE->>RK: retrieve_knowledge
-    RK->>RAG: search + ground
-    RAG-->>RK: grounded_answer + sources
-    RK-->>AE: ToolResponse
-    AE-->>O: technical analysis
-
-    O->>PR: AgentTool — local price
-    PR->>API: get_local_price
-    API-->>PR: pricing context
-    PR-->>O: pricing result
-
-    O->>IC: AgentTool — import cost
-    IC->>API: calculate_import_cost
-    API-->>IC: landed cost
-    IC-->>O: import result
-
-    O-->>U: Final recommendation in Spanish
-```
-
-Not every request uses all specialists. The orchestrator selects the smallest useful subset per turn.
-
-## 3. LangGraph workflow
+The repository currently ships a reduced grounding-first graph while ADK wiring is added incrementally.
 
 ```mermaid
 flowchart LR
-    START([START]) --> O[orchestrator_node]
-    O --> K[knowledge_node]
-    K --> R[recommendation_node]
-    R --> END([END])
+    USER[User query] --> LG[LangGraph runtime]
+    LG --> GO[graph_orchestrator_node]
+    GO --> KN[knowledge_node]
+    KN --> RK[retrieve_knowledge]
+    RK --> RAG[RAG + Grounding]
+    KN --> RN[recommendation_node]
+    RN --> USER
 
     subgraph state [LandedGraphState]
-        S1[user_message]
-        S2[current_intent / constraints]
+        S1[user_message / messages]
+        S2[intent / constraints]
         S3[grounded_answer / sources]
-        S4[final_answer / messages]
+        S4[final_answer]
     end
 
-    O --> S2
-    K --> S3
-    R --> S4
+    GO --> S2
+    KN --> S3
+    RN --> S4
 ```
+
+## 3. Target end-to-end flow
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant U as User
     participant G as LangGraph app
-    participant O as orchestrator_node
-    participant K as knowledge_node
-    participant R as recommendation_node
+    participant GO as graph_orchestrator_node
+    participant O as ADK landed_orchestrator
+    participant AE as audio_expert
     participant RK as retrieve_knowledge
     participant RAG as RAG + Grounding
+    participant ST as LandedGraphState
 
-    U->>G: invoke(user_message, session_id, country)
-    G->>O: initialize intent and constraints
-    O-->>G: orchestrator_output, messages
+    U->>G: invoke(user_message, session metadata)
+    G->>GO: update routing and memory
+    GO->>ST: current_intent, constraints, messages
 
-    G->>K: run knowledge step
-    K->>RK: retrieve_knowledge(query)
+    G->>O: delegate business orchestration
+    O->>AE: AgentTool
+    AE->>RK: retrieve_knowledge
     RK->>RAG: search + ground
     RAG-->>RK: grounded_answer + sources
-    RK-->>K: ToolResponse
-    K-->>G: knowledge_result, grounded, sources
+    RK-->>AE: ToolResponse
+    AE-->>O: technical evidence
+    O-->>G: specialist findings
 
-    G->>R: build final answer
-    R-->>G: final_answer, recommendation_output
-
-    G-->>U: merged LandedGraphState
+    G->>ST: merge grounding and agent outputs
+    G-->>U: final_answer
 ```
 
-Current graph scope is intentionally minimal: grounding-first recommendation. Pricing, import cost, and product search nodes can be added later.
+## 4. ADK-only development flow
 
-## 4. Knowledge layer: RAG + grounding
+`scripts/run_adk_agent.py` is for inspecting the ADK layer directly during development. It is not the production user entry point.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Dev as Developer
+    participant O as landed_orchestrator
+    participant PS as product_search
+    participant API as Landed API
+
+    Dev->>O: inspect ADK root_agent setup
+    O->>PS: AgentTool when invoked in a session
+    PS->>API: shared tools
+```
+
+## 5. Knowledge layer: RAG + grounding
 
 ```mermaid
 flowchart TD
-    Q[Agent calls retrieve_knowledge] --> TOOL[retrieve_knowledge_tool]
+    Q[retrieve_knowledge call] --> TOOL[retrieve_knowledge_tool]
 
     TOOL --> SEARCH[search_knowledge]
 
@@ -187,7 +166,7 @@ flowchart TD
     CTX --> LLM[Ollama llama3.1<br/>restrictive prompt]
     LLM --> GA[grounded_answer<br/>+ sources + citations]
 
-    GA --> RESP[ToolResponse to agent]
+    GA --> RESP[ToolResponse]
     NOANS --> RESP
 
     subgraph corpus [Unified corpus]
@@ -208,7 +187,7 @@ flowchart TD
 | **RAG** | Retrieve relevant chunks | `sources[]`, `backend` |
 | **Grounding** | Constrain answer to sources | `grounded_answer`, citations, refusal |
 
-## 5. LLM runtime profiles
+## 6. LLM runtime profiles
 
 ```mermaid
 flowchart LR
@@ -217,34 +196,35 @@ flowchart LR
     ENV -->|local| LOCAL[LiteLLM<br/>ollama_chat/llama3.1]
     ENV -->|gcp| GCP[Gemini string<br/>gemini-2.5-flash-lite]
 
-    RESOLVE --> AGENTS[All ADK agents]
+    RESOLVE --> ADK[ADK specialist agents]
 
     subgraph always_local [Always local today]
         EMB[Embeddings<br/>nomic-embed-text]
         GR[Grounding<br/>llama3.1]
     end
 
-    AGENTS --> LOCAL
-    AGENTS --> GCP
+    ADK --> LOCAL
+    ADK --> GCP
     RAG_LAYER[RAG layer] --> EMB
     RAG_LAYER --> GR
 ```
 
-## 6. Package map
+## 7. Package map
 
 ```mermaid
 flowchart TB
     subgraph packages [packages/]
+        GRAPHS[graphs/<br/>LangGraph entry + state]
         AGENTS[agents/<br/>ADK orchestrator + specialists]
-        GRAPHS[graphs/<br/>LangGraph state, nodes, builder]
         TOOLS[tools/<br/>product, pricing, knowledge]
         KB[knowledge_base/<br/>markdown corpus]
         RAG[rag/<br/>retriever, grounding, Chroma]
         SHARED[shared/<br/>schemas, config, logging]
     end
 
-    AGENTS --> TOOLS
+    GRAPHS --> AGENTS
     GRAPHS --> TOOLS
+    AGENTS --> TOOLS
     TOOLS --> RAG
     TOOLS --> SHARED
     RAG --> KB

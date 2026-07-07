@@ -4,7 +4,12 @@ from packages.graphs.state import LandedGraphState, require_user_message
 from packages.tools.knowledge.retrieve_knowledge_tool import retrieve_knowledge
 
 
-def orchestrator_node(state: LandedGraphState) -> dict[str, Any]:
+def graph_orchestrator_node(state: LandedGraphState) -> dict[str, Any]:
+    """Initialize graph state, routing metadata, and short-term memory.
+
+    This node coordinates workflow and session state. It is not the ADK
+    business orchestrator (`landed_orchestrator` root_agent).
+    """
     user_message = require_user_message(state)
 
     return {

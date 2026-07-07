@@ -12,18 +12,22 @@ AI commerce platform for Landed. It helps Colombian users decide what to buy and
 ## Architecture at a glance
 
 ```text
-User
-  ├─ ADK path
-  │    landed_orchestrator
-  │      -> product_search / audio_expert / pricing
-  │      -> import_cost / deal_advisor / recommendation
-  │
-  └─ LangGraph path
-       orchestrator_node -> knowledge_node -> recommendation_node
-
-Both paths reuse:
-  packages/tools -> packages/rag -> packages/knowledge_base
+User query
+  ↓
+LangGraph runtime (primary entry point)
+  ↓
+LandedGraphState + graph_orchestrator_node
+  ↓
+ADK landed_orchestrator + specialist agents
+  ↓
+Shared domain tools
+  ↓
+RAG + Grounding
+  ↓
+final response
 ```
+
+LangGraph coordinates flow and short-term memory. ADK executes specialist agents. They do not compete as two top-level orchestrators.
 
 Visual diagrams: [docs/architecture-diagram.md](docs/architecture-diagram.md)
 
@@ -67,15 +71,39 @@ landed-ai-commerce-platform/
 └── requirements.txt
 ```
 
-## Orchestration runtimes
+## Orchestration layers
 
-### ADK multi-agent
+### LangGraph (primary entry point)
+
+Entry point: `packages.graphs.landed_langgraph.build_landed_graph`
+
+| Node | Role |
+|------|------|
+| `graph_orchestrator_node` | Session state, routing, short-term memory |
+| `knowledge_node` | Grounding via `retrieve_knowledge` (lab shortcut) |
+| `recommendation_node` | Builds `final_answer` from grounded evidence |
+
+Current lab graph:
+
+```text
+START -> graph_orchestrator_node -> knowledge_node -> recommendation_node -> END
+```
+
+Run:
+
+```bash
+.venv/bin/python -m packages.graphs.landed_langgraph
+```
+
+Target architecture: `graph_orchestrator_node` will delegate to ADK `landed_orchestrator`, which will call specialist agents through `AgentTool`.
+
+### ADK (agent execution layer)
 
 Entry point: `packages.agents.orchestrator.root_agent`
 
 | Agent | Responsibility |
 |-------|----------------|
-| `landed_orchestrator` | Plans, delegates, synthesizes final answer |
+| `landed_orchestrator` | Business orchestration inside ADK |
 | `product_search` | Product resolution and offer search |
 | `audio_expert` | Technical audio guidance |
 | `pricing` | Colombian local price context |
@@ -83,27 +111,13 @@ Entry point: `packages.agents.orchestrator.root_agent`
 | `deal_advisor` | Concrete deal assessment |
 | `recommendation` | Final buying recommendation |
 
-Check ADK setup:
+Inspect ADK setup during development:
 
 ```bash
 .venv/bin/python scripts/run_adk_agent.py
 ```
 
-### LangGraph workflow
-
-Entry point: `packages.graphs.landed_langgraph.build_landed_graph`
-
-```text
-START -> orchestrator_node -> knowledge_node -> recommendation_node -> END
-```
-
-Run locally:
-
-```bash
-.venv/bin/python -m packages.graphs.landed_langgraph
-```
-
-The current graph is a minimal grounding-first workflow. It reuses `retrieve_knowledge` and is intended to grow into a fuller commerce pipeline.
+This script is for development only. Production user traffic should enter through LangGraph.
 
 ## Knowledge, RAG, and grounding
 
@@ -198,9 +212,9 @@ cp .env.example .env
 ollama serve
 .venv/bin/python -m packages.tools.knowledge.ingest_documents
 
-# Verify orchestration runtimes
-.venv/bin/python scripts/run_adk_agent.py
+# Verify orchestration layers
 .venv/bin/python -m packages.graphs.landed_langgraph
+.venv/bin/python scripts/run_adk_agent.py
 ```
 
 ## Documentation
@@ -222,4 +236,4 @@ ollama serve
 - Add domain errors in `packages/shared/errors/`.
 - Add trace/log helpers in `packages/shared/logging/` and observability helpers in `packages/shared/observability/`.
 
-The ADK orchestrator should stay focused on planning, delegation, fallback handling, and final synthesis. LangGraph should own explicit workflow sequencing. Domain-specific rules should live in the specialist agent or node that owns that domain.
+The LangGraph layer should own workflow sequencing and short-term memory. The ADK orchestrator should own business delegation to specialist agents. Domain-specific rules should live in the specialist agent or graph node that owns that domain.

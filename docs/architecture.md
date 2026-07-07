@@ -1,9 +1,12 @@
 # Architecture
 
-`landed-ai-commerce-platform` is organized as a monorepo for commerce-focused AI agents. The platform supports two complementary orchestration runtimes:
+`landed-ai-commerce-platform` is organized as a monorepo for commerce-focused AI agents. The platform uses a layered orchestration model:
 
-- **Google ADK multi-agent runtime** for conversational supervisor delegation through specialist agents.
-- **LangGraph workflow runtime** for deterministic, stateful commerce flows that reuse the same tools and grounding layer.
+- **LangGraph** as the stateful coordination layer: short-term memory, workflow routing, and graph state.
+- **Google ADK** as the agent execution layer: multi-agent delegation through specialist agents.
+- **Shared tools and RAG** as reusable capabilities underneath both layers.
+
+The user-facing entry point is LangGraph. ADK is not a competing top-level orchestrator; it executes specialist work inside the graph when needed.
 
 For visual flow diagrams, see [architecture-diagram.md](./architecture-diagram.md).
 
@@ -58,40 +61,62 @@ The orchestrator prompt uses the RECAP / REASON / VERIFY loop as an internal rea
 
 ## LangGraph Workflow Runtime
 
-`packages/graphs` provides a deterministic workflow path built with LangGraph. It complements the ADK runtime rather than replacing it.
+`packages/graphs` is the primary user entry point. LangGraph wraps ADK instead of competing with it.
 
-### Purpose
+### Layered responsibilities
 
-- Run explicit, inspectable commerce flows with shared state.
-- Exercise local grounding end-to-end through graph nodes.
-- Prepare for durable, stateful orchestration without changing the tool contracts underneath.
+| Layer | Responsibility | Examples |
+|-------|----------------|----------|
+| **LangGraph** | Stateful coordination, short-term memory, workflow routing | `LandedGraphState`, `graph_orchestrator_node` |
+| **ADK** | Specialist agent execution and business orchestration | `landed_orchestrator`, `audio_expert`, `deal_advisor` |
+| **Tools** | Deterministic capabilities | `search_products`, `retrieve_knowledge` |
+| **RAG / Grounding** | Local evidence | Chroma, lexical fallback, `grounding_service` |
 
-### Package layout
+### Target flow
 
 ```text
-packages/graphs/
-├── state.py            # LandedGraphState TypedDict
-├── nodes.py            # orchestrator, knowledge, recommendation nodes
-└── landed_langgraph.py # build_landed_graph() and local runner
+User query
+  -> LangGraph runtime
+  -> LandedGraphState
+  -> graph_orchestrator_node
+  -> ADK landed_orchestrator root_agent
+  -> specialist agents through AgentTool
+  -> shared domain tools
+  -> RAG + grounding
+  -> LangGraph state updated
+  -> final response
 ```
 
-### Graph topology
+### Current lab graph
+
+The current implementation is a reduced grounding-first workflow used to validate local evidence before wiring full ADK delegation:
 
 ```text
 START
-  -> orchestrator_node
+  -> graph_orchestrator_node
   -> knowledge_node
   -> recommendation_node
   -> END
 ```
 
+`knowledge_node` currently calls `retrieve_knowledge` directly. The next step is to route `graph_orchestrator_node` through `landed_orchestrator` and ADK specialist agents while keeping the same tool contracts.
+
+### Package layout
+
+```text
+packages/graphs/
+├── state.py                 # LandedGraphState TypedDict
+├── nodes.py                 # graph_orchestrator, knowledge, recommendation nodes
+└── landed_langgraph.py      # build_landed_graph() and local runner
+```
+
 ### Node responsibilities
 
-| Node | Responsibility | Reused capability |
-|------|----------------|-------------------|
-| `orchestrator_node` | Initialize intent, constraints, and routing metadata | Placeholder for future ADK orchestrator integration |
-| `knowledge_node` | Call `retrieve_knowledge` and persist grounding outputs | `packages/tools/knowledge/retrieve_knowledge_tool.py` |
-| `recommendation_node` | Build `final_answer` from `grounded_answer` | Placeholder for future ADK recommendation agent |
+| Node | Responsibility | Notes |
+|------|----------------|-------|
+| `graph_orchestrator_node` | Session state, routing metadata, short-term memory | Not the ADK business orchestrator |
+| `knowledge_node` | Call `retrieve_knowledge` and persist grounding outputs | Lab shortcut to shared knowledge tool |
+| `recommendation_node` | Build `final_answer` from `grounded_answer` | Future target: call ADK `recommendation` agent |
 
 ### Shared graph state
 
@@ -111,35 +136,42 @@ START
 python -m packages.graphs.landed_langgraph
 ```
 
-The current graph is a minimal grounding-first workflow. Future iterations can add pricing, import cost, product search, and ADK agent nodes without changing the underlying tools.
+Direct ADK inspection remains available for development only:
 
-### ADK vs LangGraph
+```bash
+python scripts/run_adk_agent.py
+```
 
-| Concern | ADK runtime | LangGraph runtime |
-|---------|-------------|-------------------|
-| Entry point | `packages.agents.orchestrator.root_agent` | `build_landed_graph()` |
-| Orchestration style | LLM supervisor delegates through `AgentTool` | Explicit node graph and edges |
-| Best for | Conversational multi-agent commerce assistance | Deterministic workflow prototyping, grounding validation, durable state |
-| Shared layer | `packages/tools`, `packages/rag`, `packages/knowledge_base` | Same |
+### LangGraph vs ADK
+
+| Concern | LangGraph | ADK |
+|---------|-----------|-----|
+| User entry point | Yes | No |
+| Short-term memory / graph state | Yes | No |
+| Business orchestration | Routes workflow | `landed_orchestrator` delegates to specialists |
+| Specialist execution | Through future graph nodes | `AgentTool` to specialist agents |
+| Shared capabilities | Calls tools directly in lab nodes today | Specialists call the same tools |
 
 ## Runtime Flow
 
-### ADK multi-agent flow
-
-1. User submits a shopping or product-related query.
-2. The orchestrator extracts the shopping intent, budget, country, constraints, and missing information.
-3. The orchestrator delegates to specialist agents through `AgentTool`.
-4. Specialists call domain tools: Landed API for product/pricing/import, `retrieve_knowledge` for local evidence.
-5. The orchestrator synthesizes specialist findings into a concise recommendation in Spanish.
-6. If a dependency fails, the orchestrator continues with partial evidence when safe and clearly states uncertainty.
-
-### LangGraph workflow flow
+### Primary flow through LangGraph
 
 1. User invokes the compiled graph with `user_message` and optional session metadata.
-2. `orchestrator_node` initializes intent, constraints, and routing metadata.
-3. `knowledge_node` calls `retrieve_knowledge` and writes grounding outputs into graph state.
-4. `recommendation_node` produces `final_answer` from `grounded_answer` or an explicit no-evidence response.
-5. The graph returns the merged `LandedGraphState` with conversation and grounding fields populated.
+2. `graph_orchestrator_node` updates `LandedGraphState`, routing metadata, and short-term memory.
+3. Workflow nodes execute the selected route. In the lab graph, `knowledge_node` and `recommendation_node` call shared tools directly.
+4. In the target architecture, `graph_orchestrator_node` delegates business decisions to ADK `landed_orchestrator`, which calls specialist agents through `AgentTool`.
+5. Specialist agents call shared tools and write results back into graph state.
+6. The graph returns the merged `LandedGraphState` and `final_answer`.
+
+### ADK execution inside the graph
+
+When ADK is invoked from LangGraph:
+
+1. `landed_orchestrator` extracts shopping intent, budget, country, constraints, and missing information.
+2. It delegates to specialist agents through `AgentTool`.
+3. Specialists call domain tools: Landed API for product/pricing/import, `retrieve_knowledge` for local evidence.
+4. The ADK orchestrator synthesizes specialist findings for the graph node that requested them.
+5. If a dependency fails, the orchestrator continues with partial evidence when safe and clearly states uncertainty.
 
 ## LLM Runtime Profiles
 
@@ -308,7 +340,8 @@ Near-term improvements that fit the current architecture:
 - Migrate semantic retrieval from Chroma + Ollama to Vertex AI Vector Search + Gemini embeddings in GCP.
 - Add evaluation harnesses for grounded answers and out-of-domain refusal behavior.
 - Expand `packages/knowledge_base/` beyond audio as new commerce categories are added.
-- Extend the LangGraph workflow with pricing, import cost, product search, and ADK-backed nodes.
+- Wire `graph_orchestrator_node` to ADK `landed_orchestrator` instead of using the lab shortcut graph.
+- Extend LangGraph with pricing, import cost, product search, and ADK-backed recommendation nodes.
 
 ## Architecture Principle
 
