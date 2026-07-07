@@ -4,13 +4,13 @@ from packages.shared.schemas.agent_response_schema import ToolResponse
 from packages.tools.knowledge.rag_search_tool import search_knowledge
 
 
-def retrieve_knowledge(query: str) -> dict:
+def retrieve_knowledge(query: str, limit: int = 4) -> dict:
     """Agent-facing knowledge tool with retrieval and local grounding."""
     trace_id = new_trace_id()
     synthesis_error = None
 
     try:
-        retrieval = search_knowledge(query=query, limit=4)
+        retrieval = search_knowledge(query=query, limit=limit)
         ok = True
         error = None
     except Exception as exc:
@@ -26,7 +26,7 @@ def retrieve_knowledge(query: str) -> dict:
     try:
         grounded_result = answer_with_local_grounding(
             question=query,
-            limit=4,
+            limit=limit,
             retrieval=retrieval,
         )
     except Exception as exc:

@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "landed-domain-mcp": {
+      "command": "${workspaceFolder}/.venv/bin/python",
+      "args": [
+        "-m",
+        "packages.mcp.landed_mcp_server"
+      ]
+    }
+  }
+}

@@ -8,6 +8,7 @@ AI commerce platform for Landed. It helps Colombian users decide what to buy and
 - **LangGraph workflow runtime** for deterministic, stateful flows.
 - **Local RAG + grounding** over a unified markdown knowledge base.
 - **Shared tools** for product search, pricing, import cost, and knowledge retrieval.
+- **MCP server** (`landed-domain-mcp`) to expose the same tools to Cursor and other MCP clients.
 
 ## Architecture at a glance
 
@@ -59,6 +60,8 @@ landed-ai-commerce-platform/
 │   │   ├── local_retriever.py
 │   │   ├── grounding_service.py
 │   │   └── embeddings/
+│   ├── mcp/                 # MCP exposure layer
+│   │   └── landed_mcp_server.py
 │   └── shared/              # Schemas, config, logging, observability
 ├── docs/
 │   ├── architecture.md
@@ -118,6 +121,26 @@ Inspect ADK setup during development:
 ```
 
 This script is for development only. Production user traffic should enter through LangGraph.
+
+### MCP (Cursor and external clients)
+
+Entry point: `packages.mcp.landed_mcp_server`
+
+| MCP tool | Purpose |
+|----------|---------|
+| `retrieve_landed_knowledge` | Grounded local knowledge with citations |
+| `search_landed_products` | Search imported and local offers |
+| `get_landed_product_details` | Resolve a product query to canonical details |
+| `get_landed_local_price` | Colombian local price context |
+| `calculate_landed_import_cost` | Landed import cost for a product query |
+
+Run manually:
+
+```bash
+.venv/bin/python -m packages.mcp.landed_mcp_server
+```
+
+Cursor project config lives in `.cursor/mcp.json`. After opening the repo in Cursor, enable `landed-domain-mcp` in MCP settings. Cursor launches the stdio server with the project virtualenv and discovers the five tools automatically.
 
 ## Knowledge, RAG, and grounding
 
@@ -215,6 +238,9 @@ ollama serve
 # Verify orchestration layers
 .venv/bin/python -m packages.graphs.landed_langgraph
 .venv/bin/python scripts/run_adk_agent.py
+
+# Optional: verify MCP server module loads
+.venv/bin/python -c "import packages.mcp.landed_mcp_server as s; print(s.mcp.name)"
 ```
 
 ## Documentation

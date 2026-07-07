@@ -209,13 +209,64 @@ flowchart LR
     RAG_LAYER --> GR
 ```
 
-## 7. Package map
+## 7. MCP tool ecosystem
+
+MCP is a fourth entry point into the same shared tools used by LangGraph and ADK.
+
+```mermaid
+flowchart TB
+    subgraph clients [Entry points]
+        LG[LangGraph runtime]
+        ADK[ADK specialist agents]
+        MCP[Cursor / MCP client]
+    end
+
+    subgraph exposure [Exposure layers]
+        GN[graph nodes]
+        AT[AgentTool delegation]
+        MS[landed-domain-mcp]
+    end
+
+    subgraph tools [Shared domain tools]
+        T1[search_products]
+        T2[get_product_details]
+        T3[get_local_price]
+        T4[calculate_import_cost]
+        T5[retrieve_knowledge]
+    end
+
+    LG --> GN
+    ADK --> AT
+    MCP --> MS
+
+    GN --> T5
+    AT --> T1
+    AT --> T2
+    AT --> T3
+    AT --> T4
+    AT --> T5
+
+    MS -->|search_landed_products| T1
+    MS -->|get_landed_product_details| T2
+    MS -->|get_landed_local_price| T3
+    MS -->|calculate_landed_import_cost| T4
+    MS -->|retrieve_landed_knowledge| T5
+
+    T1 --> API[Landed API]
+    T2 --> API
+    T3 --> API
+    T4 --> API
+    T5 --> RAG[RAG + Grounding]
+```
+
+## 8. Package map
 
 ```mermaid
 flowchart TB
     subgraph packages [packages/]
         GRAPHS[graphs/<br/>LangGraph entry + state]
         AGENTS[agents/<br/>ADK orchestrator + specialists]
+        MCP[mcp/<br/>landed-domain-mcp]
         TOOLS[tools/<br/>product, pricing, knowledge]
         KB[knowledge_base/<br/>markdown corpus]
         RAG[rag/<br/>retriever, grounding, Chroma]
@@ -225,11 +276,13 @@ flowchart TB
     GRAPHS --> AGENTS
     GRAPHS --> TOOLS
     AGENTS --> TOOLS
+    MCP --> TOOLS
     TOOLS --> RAG
     TOOLS --> SHARED
     RAG --> KB
     AGENTS --> SHARED
     GRAPHS --> SHARED
+    MCP --> SHARED
 ```
 
 ## Related docs

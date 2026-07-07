@@ -24,6 +24,7 @@ For visual flow diagrams, see [architecture-diagram.md](./architecture-diagram.m
 - `packages/knowledge_base`: unified markdown corpus for semantic ingest and lexical fallback.
 - `packages/rag`: retriever layer, grounding service, Chroma embeddings storage, and local lexical search.
 - `packages/shared`: shared schemas, DTOs, logging, configuration, errors, and observability utilities.
+- `packages/mcp`: MCP exposure layer that reuses the same domain tools as ADK and LangGraph.
 
 ## Multi-Agent Topology
 
@@ -152,6 +153,66 @@ python scripts/run_adk_agent.py
 | Specialist execution | Through future graph nodes | `AgentTool` to specialist agents |
 | Shared capabilities | Calls tools directly in lab nodes today | Specialists call the same tools |
 
+## MCP Exposure Layer
+
+`packages/mcp/landed_mcp_server.py` exposes Landed domain capabilities to external MCP clients such as Cursor, Claude Desktop, or other agent runtimes. The MCP server is a thin adapter: it does not duplicate business logic. Each MCP tool delegates to the same functions used by ADK specialist agents and LangGraph nodes.
+
+### Server
+
+| Property | Value |
+|----------|-------|
+| Server name | `landed-domain-mcp` |
+| Entry point | `python -m packages.mcp.landed_mcp_server` |
+| Transport | stdio (FastMCP default) |
+| Cursor config | `.cursor/mcp.json` |
+
+### Tool map
+
+| MCP tool | Internal function | Domain |
+|----------|-------------------|--------|
+| `retrieve_landed_knowledge` | `retrieve_knowledge` | Knowledge + grounding |
+| `search_landed_products` | `search_products` | Product search |
+| `get_landed_product_details` | `get_product_details` | Product resolution |
+| `get_landed_local_price` | `get_local_price` | Colombian local pricing |
+| `calculate_landed_import_cost` | `calculate_import_cost` | Landed import cost |
+
+MCP tool names use the `landed_` prefix so external clients can distinguish them from generic tool names. Parameters follow the existing backend contract (`query: str`) rather than alternate signatures such as `product_id` or explicit USD price inputs.
+
+### Tool ecosystem
+
+```text
+External MCP client (Cursor, Claude Desktop, other agents)
+  -> landed-domain-mcp
+  -> packages/tools/*
+  -> Landed API + RAG + grounding
+```
+
+LangGraph, ADK, and MCP are three entry points into one shared tool ecosystem:
+
+```text
+User / developer
+  ├─ LangGraph runtime        -> graph nodes -> shared tools
+  ├─ ADK specialist agents    -> AgentTool path -> shared tools
+  └─ MCP client               -> landed-domain-mcp -> shared tools
+```
+
+This matches the Tool Use / Tool Ecosystem pattern: expose deterministic capabilities once, then let different orchestration layers decide when to call them.
+
+### Configuration and runtime
+
+The MCP process loads environment variables from `.env` through `packages/shared/config/settings.py` when tools are imported. At minimum, local development expects:
+
+- `LANDED_API_BASE_URL` for product, pricing, and import tools
+- `OLLAMA_HOST` and `OLLAMA_GROUNDING_MODEL` for knowledge retrieval and grounding
+
+Run manually:
+
+```bash
+.venv/bin/python -m packages.mcp.landed_mcp_server
+```
+
+In Cursor, enable the server from project settings after `.cursor/mcp.json` is present. Cursor launches the stdio process and discovers the five domain tools automatically.
+
 ## Runtime Flow
 
 ### Primary flow through LangGraph
@@ -266,6 +327,7 @@ Specialist agents (`audio_expert`, `recommendation`, `deal_advisor`) treat `grou
 - ChromaDB for local vector storage.
 - LiteLLM for Ollama integration when `LLM_RUNTIME=local`.
 - Gemini when `LLM_RUNTIME=gcp`.
+- MCP SDK (`mcp` + FastMCP) for external tool exposure through `packages/mcp`.
 
 ## Data Contracts
 
