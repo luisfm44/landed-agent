@@ -9,8 +9,8 @@ LANDED_API_TIMEOUT_SECONDS = float(os.getenv("LANDED_API_TIMEOUT_SECONDS", "60")
 LANDED_API_MAX_RETRIES = int(os.getenv("LANDED_API_MAX_RETRIES", "2"))
 LANDED_API_BACKOFF_SECONDS = float(os.getenv("LANDED_API_BACKOFF_SECONDS", "1"))
 
-ORCHESTRATOR_MODEL = os.getenv("ORCHESTRATOR_MODEL", "gemini-2.5-flash")
-FAST_AGENT_MODEL = os.getenv("FAST_AGENT_MODEL", "gemini-2.5-flash")
-REASONING_AGENT_MODEL = os.getenv("REASONING_AGENT_MODEL", "gemini-2.5-flash")
+ORCHESTRATOR_MODEL = os.getenv("ORCHESTRATOR_MODEL", "gemini-2.5-flash-lite")
+FAST_AGENT_MODEL = os.getenv("FAST_AGENT_MODEL", "gemini-2.5-flash-lite")
+REASONING_AGENT_MODEL = os.getenv("REASONING_AGENT_MODEL", "gemini-2.5-flash-lite")
 
 MAX_TOOL_CALLS_PER_REQUEST = int(os.getenv("MAX_TOOL_CALLS_PER_REQUEST", "12"))
