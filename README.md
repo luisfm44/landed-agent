@@ -39,6 +39,10 @@ landed-ai-commerce-platform/
 │   │   ├── embeddings/
 │   │   ├── retriever.py
 │   │   └── local_retriever.py
+│   ├── graphs/
+│   │   ├── state.py
+│   │   ├── nodes.py
+│   │   └── landed_langgraph.py
 │   └── shared/
 │       ├── schemas/
 │       ├── dto/
@@ -69,6 +73,20 @@ Coordinates product search, pricing, import cost, retrieval, and recommendation 
 - `import_cost`: estimates landed import costs.
 - `recommendation`: turns the evidence into a final buying recommendation.
 - `deal_advisor`: evaluates whether a specific buying opportunity is a good deal.
+
+### LangGraph workflow
+
+`packages/graphs` provides a deterministic LangGraph path that reuses the same tools and grounding layer:
+
+```text
+START -> orchestrator_node -> knowledge_node -> recommendation_node -> END
+```
+
+Run locally:
+
+```bash
+python -m packages.graphs.landed_langgraph
+```
 
 ## Configuration
 

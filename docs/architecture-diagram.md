@@ -4,11 +4,14 @@ Visual reference for the Landed multi-agent commerce platform. These diagrams co
 
 ## 1. System overview
 
+Landed exposes two orchestration entry points that share the same tools and knowledge layer.
+
 ```mermaid
 flowchart TB
-    USER[User query] --> ORCH[landed_orchestrator<br/>ADK root_agent]
+    USER[User query]
 
-    subgraph agents [Specialist agents]
+    subgraph adk [ADK runtime]
+        ORCH[landed_orchestrator<br/>root_agent]
         PS[product_search]
         AE[audio_expert]
         PR[pricing]
@@ -17,6 +20,16 @@ flowchart TB
         REC[recommendation]
     end
 
+    subgraph graph [LangGraph runtime]
+        LG[build_landed_graph]
+        GN1[orchestrator_node]
+        GN2[knowledge_node]
+        GN3[recommendation_node]
+    end
+
+    USER --> ORCH
+    USER --> LG
+
     ORCH -->|AgentTool| PS
     ORCH -->|AgentTool| AE
     ORCH -->|AgentTool| PR
@@ -24,7 +37,9 @@ flowchart TB
     ORCH -->|AgentTool| DA
     ORCH -->|AgentTool| REC
 
-    subgraph tools [Domain tools]
+    LG --> GN1 --> GN2 --> GN3
+
+    subgraph tools [Shared domain tools]
         T1[search_products]
         T2[get_product_details]
         T3[get_local_price]
@@ -41,25 +56,16 @@ flowchart TB
     AE --> T5
     REC --> T5
     DA --> T5
+    GN2 --> T5
 
     T1 --> API[Landed API]
     T2 --> API
     T3 --> API
     T4 --> API
-
     T5 --> RAG[RAG + Grounding layer]
 
-    subgraph llm [LLM runtime]
-        GEMINI[Gemini<br/>LLM_RUNTIME=gcp]
-        OLLAMA_AGENT[Ollama llama3.1<br/>LLM_RUNTIME=local]
-    end
-
-    ORCH -.-> GEMINI
-    ORCH -.-> OLLAMA_AGENT
-    agents -.-> GEMINI
-    agents -.-> OLLAMA_AGENT
-
     ORCH --> USER
+    GN3 --> USER
 ```
 
 ## 2. End-to-end request flow
@@ -108,7 +114,58 @@ sequenceDiagram
 
 Not every request uses all specialists. The orchestrator selects the smallest useful subset per turn.
 
-## 3. Knowledge layer: RAG + grounding
+## 3. LangGraph workflow
+
+```mermaid
+flowchart LR
+    START([START]) --> O[orchestrator_node]
+    O --> K[knowledge_node]
+    K --> R[recommendation_node]
+    R --> END([END])
+
+    subgraph state [LandedGraphState]
+        S1[user_message]
+        S2[current_intent / constraints]
+        S3[grounded_answer / sources]
+        S4[final_answer / messages]
+    end
+
+    O --> S2
+    K --> S3
+    R --> S4
+```
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as User
+    participant G as LangGraph app
+    participant O as orchestrator_node
+    participant K as knowledge_node
+    participant R as recommendation_node
+    participant RK as retrieve_knowledge
+    participant RAG as RAG + Grounding
+
+    U->>G: invoke(user_message, session_id, country)
+    G->>O: initialize intent and constraints
+    O-->>G: orchestrator_output, messages
+
+    G->>K: run knowledge step
+    K->>RK: retrieve_knowledge(query)
+    RK->>RAG: search + ground
+    RAG-->>RK: grounded_answer + sources
+    RK-->>K: ToolResponse
+    K-->>G: knowledge_result, grounded, sources
+
+    G->>R: build final answer
+    R-->>G: final_answer, recommendation_output
+
+    G-->>U: merged LandedGraphState
+```
+
+Current graph scope is intentionally minimal: grounding-first recommendation. Pricing, import cost, and product search nodes can be added later.
+
+## 4. Knowledge layer: RAG + grounding
 
 ```mermaid
 flowchart TD
@@ -151,7 +208,7 @@ flowchart TD
 | **RAG** | Retrieve relevant chunks | `sources[]`, `backend` |
 | **Grounding** | Constrain answer to sources | `grounded_answer`, citations, refusal |
 
-## 4. LLM runtime profiles
+## 5. LLM runtime profiles
 
 ```mermaid
 flowchart LR
@@ -173,12 +230,13 @@ flowchart LR
     RAG_LAYER --> GR
 ```
 
-## 5. Package map
+## 6. Package map
 
 ```mermaid
 flowchart TB
     subgraph packages [packages/]
-        AGENTS[agents/<br/>orchestrator + specialists]
+        AGENTS[agents/<br/>ADK orchestrator + specialists]
+        GRAPHS[graphs/<br/>LangGraph state, nodes, builder]
         TOOLS[tools/<br/>product, pricing, knowledge]
         KB[knowledge_base/<br/>markdown corpus]
         RAG[rag/<br/>retriever, grounding, Chroma]
@@ -186,10 +244,12 @@ flowchart TB
     end
 
     AGENTS --> TOOLS
+    GRAPHS --> TOOLS
     TOOLS --> RAG
     TOOLS --> SHARED
     RAG --> KB
     AGENTS --> SHARED
+    GRAPHS --> SHARED
 ```
 
 ## Related docs
