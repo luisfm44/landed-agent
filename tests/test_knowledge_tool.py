@@ -6,11 +6,11 @@ def test_retrieve_knowledge_returns_grounded_matches():
 
     assert result["ok"] is True
     assert result["trace_id"]
-    assert result["source"] == "local_landed_rag"
+    assert result["source"].startswith("landed_rag:")
     assert result["data"] is not None
     assert result["data"]["tool"] == "retrieve_knowledge"
     assert result["data"]["grounded"] is True
-    assert len(result["data"]["matches"]) > 0
+    assert len(result["data"]["sources"]) > 0
     assert result["error"] is None
 
 
@@ -19,7 +19,9 @@ def test_retrieve_knowledge_handles_unknown_query():
 
     assert result["ok"] is True
     assert result["trace_id"]
-    assert result["source"] == "local_landed_rag"
+    assert result["source"].startswith("landed_rag:")
     assert result["data"] is not None
     assert result["data"]["tool"] == "retrieve_knowledge"
+    assert result["data"]["grounded"] is False
+    assert result["data"]["sources"] == []
     assert result["error"] is None

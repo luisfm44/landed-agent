@@ -12,7 +12,8 @@
 - `packages/agents/recommendation`: specialist agent focused on final buying recommendations.
 - `packages/agents/deal_advisor`: specialist agent that evaluates whether a specific listing, used product, import opportunity, or local offer is worth it.
 - `packages/tools`: reusable tools grouped by product, pricing, import, and knowledge domains.
-- `packages/rag`: local knowledge collections for product knowledge, buying guides, reviews, embeddings, and ingestion.
+- `packages/knowledge_base`: unified markdown corpus for semantic ingest and lexical fallback.
+- `packages/rag`: retriever layer, Chroma embeddings storage, and local lexical search.
 - `packages/shared`: shared schemas, DTOs, logging, configuration, errors, and observability utilities.
 
 ## Runtime Flow

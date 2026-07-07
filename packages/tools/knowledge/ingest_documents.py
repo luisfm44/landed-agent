@@ -1,8 +1,8 @@
 from pathlib import Path
 from typing import TypedDict
 
-from packages.rag.local_retriever import _read_text_file, _split_markdown_sections
-from packages.tools.knowledge.vector_store import KNOWLEDGE_BASE_DIR, get_collection
+from packages.knowledge_base.loader import KNOWLEDGE_BASE_DIR, load_knowledge_sections
+from packages.tools.knowledge.vector_store import get_collection
 
 
 class KnowledgeChunk(TypedDict):
@@ -17,28 +17,18 @@ def _load_markdown_chunks(
     base_dir = knowledge_dir or KNOWLEDGE_BASE_DIR
     chunks: list[KnowledgeChunk] = []
 
-    if not base_dir.exists():
-        return chunks
-
-    for file_path in sorted(base_dir.rglob("*.md")):
-        if file_path.name.startswith("._"):
-            continue
-
-        content = _read_text_file(file_path)
-        rel_source = str(file_path.relative_to(base_dir.parent))
-
-        for title, body in _split_markdown_sections(content):
-            chunk_id = f"{rel_source}:{title}".replace(" ", "_")
-            chunks.append(
-                {
-                    "id": chunk_id,
-                    "document": f"{title}\n{body}",
-                    "metadata": {
-                        "source": rel_source,
-                        "title": title,
-                    },
-                }
-            )
+    for section in load_knowledge_sections(base_dir):
+        chunk_id = f"{section['source']}:{section['title']}".replace(" ", "_")
+        chunks.append(
+            {
+                "id": chunk_id,
+                "document": f"{section['title']}\n{section['content']}",
+                "metadata": {
+                    "source": section["source"],
+                    "title": section["title"],
+                },
+            }
+        )
 
     return chunks
 

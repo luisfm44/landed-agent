@@ -7,10 +7,11 @@ from chromadb.api.types import EmbeddingFunction
 from chromadb.utils.embedding_functions import OllamaEmbeddingFunction
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[2]
-KNOWLEDGE_BASE_DIR = PACKAGE_ROOT / "knowledge_base"
 CHROMA_PERSIST_DIR = PACKAGE_ROOT / "rag" / "embeddings" / "chroma"
 DEFAULT_EMBEDDING_MODEL = "nomic-embed-text"
 DEFAULT_COLLECTION = "landed_knowledge"
+# Chroma L2 distance: lower is more similar. Matches above this are treated as weak.
+DEFAULT_SEMANTIC_MAX_DISTANCE = 0.45
 
 
 def get_embedding_function(

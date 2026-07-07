@@ -33,12 +33,12 @@ landed-ai-commerce-platform/
 │   │   ├── product/
 │   │   ├── pricing/
 │   │   └── knowledge/
+│   ├── knowledge_base/
+│   │   └── audio/
 │   ├── rag/
-│   │   ├── product_knowledge/
-│   │   ├── buying_guides/
-│   │   ├── reviews/
 │   │   ├── embeddings/
-│   │   └── ingestion/
+│   │   ├── retriever.py
+│   │   └── local_retriever.py
 │   └── shared/
 │       ├── schemas/
 │       ├── dto/

@@ -1,6 +1,9 @@
 from typing import Any
 
-from packages.tools.knowledge.vector_store import get_collection
+from packages.tools.knowledge.vector_store import (
+    DEFAULT_SEMANTIC_MAX_DISTANCE,
+    get_collection,
+)
 
 
 def _first_query_row(results: Any, key: str) -> list[Any]:
@@ -51,16 +54,35 @@ def retrieve_context(
     return retrieved
 
 
+def _filter_relevant_sources(
+    sources: list[dict[str, Any]],
+    max_distance: float = DEFAULT_SEMANTIC_MAX_DISTANCE,
+) -> list[dict[str, Any]]:
+    """Keep only semantic matches within the configured distance threshold."""
+    relevant: list[dict[str, Any]] = []
+
+    for source in sources:
+        distance = source.get("distance")
+        if distance is None or distance <= max_distance:
+            relevant.append(source)
+
+    return relevant
+
+
 def retrieve_knowledge(
     query: str,
     limit: int = 4,
+    max_distance: float = DEFAULT_SEMANTIC_MAX_DISTANCE,
 ) -> dict[str, Any]:
     """Stable contract for tools and agents.
 
     Agents should call this contract indirectly through tools,
     not ChromaDB directly.
     """
-    sources = retrieve_context(query=query, limit=limit)
+    sources = _filter_relevant_sources(
+        retrieve_context(query=query, limit=limit),
+        max_distance=max_distance,
+    )
 
     return {
         "query": query,
