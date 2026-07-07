@@ -48,6 +48,7 @@ landed-ai-commerce-platform/
 │       └── observability/
 ├── docs/
 │   ├── architecture.md
+│   ├── architecture-diagram.md
 │   ├── roadmap.md
 │   └── evaluation.md
 ├── docker-compose.yml
