@@ -1,5 +1,6 @@
 from typing import Any
 
+from packages.graphs.adk_runner import run_adk_orchestrator
 from packages.graphs.state import LandedGraphState, require_user_message
 from packages.tools.knowledge.retrieve_knowledge_tool import retrieve_knowledge
 
@@ -13,19 +14,41 @@ def graph_orchestrator_node(state: LandedGraphState) -> dict[str, Any]:
     user_message = require_user_message(state)
 
     return {
-        "current_intent": "audio_recommendation",
-        "product_type": "headphones",
+        "current_intent": "commerce_assistance",
         "country": state.get("country", "Colombia"),
         "constraints": {
             "needs_grounding": True,
             "domain": "audio",
         },
         "orchestrator_output": {
-            "route": "knowledge_then_recommendation",
-            "reason": "User is asking for audio/product guidance",
+            "route": "adk_orchestrator",
+            "reason": "Delegate business orchestration to ADK specialists",
         },
         "messages": state.get("messages", [])
         + [{"role": "user", "content": user_message}],
+    }
+
+
+def adk_orchestrator_node(state: LandedGraphState) -> dict[str, Any]:
+    """Run ADK `landed_orchestrator`, which delegates to specialist agents and tools."""
+    user_message = require_user_message(state)
+    session_id = state.get("session_id") or "default-session"
+    user_id = state.get("user_id") or "default-user"
+
+    adk_result = run_adk_orchestrator(
+        user_id=user_id,
+        session_id=session_id,
+        user_message=user_message,
+    )
+    final_answer = adk_result.get("final_answer") or (
+        "No pude generar una respuesta con el orquestador ADK."
+    )
+
+    return {
+        "orchestrator_output": adk_result,
+        "final_answer": final_answer,
+        "messages": state.get("messages", [])
+        + [{"role": "assistant", "content": final_answer}],
     }
 
 

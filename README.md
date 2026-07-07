@@ -4,28 +4,25 @@ AI commerce platform for Landed. It helps Colombian users decide what to buy and
 
 ## What this repo provides
 
-- **ADK multi-agent runtime** for conversational commerce assistance.
-- **LangGraph workflow runtime** for deterministic, stateful flows.
+- **LangGraph workflow runtime** as the primary user entry point.
+- **ADK multi-agent runtime** for specialist commerce orchestration inside the graph.
 - **Local RAG + grounding** over a unified markdown knowledge base.
 - **Shared tools** for product search, pricing, import cost, and knowledge retrieval.
 - **MCP server** (`landed-domain-mcp`) to expose the same tools to Cursor and other MCP clients.
+- **Local API mock** for product, pricing, and import development without the real Landed backend.
 
 ## Architecture at a glance
 
-```text
-User query
-  ↓
-LangGraph runtime (primary entry point)
-  ↓
-LandedGraphState + graph_orchestrator_node
-  ↓
-ADK landed_orchestrator + specialist agents
-  ↓
-Shared domain tools
-  ↓
-RAG + Grounding
-  ↓
-final response
+```mermaid
+flowchart TB
+    USER[User] --> LG[LangGraph]
+    LG --> GO[graph_orchestrator_node]
+    GO --> AO[adk_orchestrator_node]
+    AO --> ADK[ADK landed_orchestrator]
+    ADK --> TOOLS[Shared domain tools]
+    TOOLS --> API[Landed API mock]
+    TOOLS --> RAG[RAG + grounding]
+    AO --> ANSWER[final_answer]
 ```
 
 LangGraph coordinates flow and short-term memory. ADK executes specialist agents. They do not compete as two top-level orchestrators.
@@ -48,6 +45,7 @@ landed-ai-commerce-platform/
 │   ├── graphs/              # LangGraph workflow layer
 │   │   ├── state.py
 │   │   ├── nodes.py
+│   │   ├── adk_runner.py
 │   │   └── landed_langgraph.py
 │   ├── tools/               # Domain tools
 │   │   ├── product/
@@ -63,13 +61,16 @@ landed-ai-commerce-platform/
 │   ├── mcp/                 # MCP exposure layer
 │   │   └── landed_mcp_server.py
 │   └── shared/              # Schemas, config, logging, observability
+├── scripts/
+│   ├── landed_api_mock.py   # Local Landed API for dev
+│   └── run_adk_agent.py     # ADK inspection only
+├── .cursor/
+│   └── mcp.json             # Cursor MCP config
 ├── docs/
 │   ├── architecture.md
 │   ├── architecture-diagram.md
 │   ├── roadmap.md
 │   └── evaluation.md
-├── scripts/
-│   └── run_adk_agent.py
 ├── .env.example
 └── requirements.txt
 ```
@@ -80,17 +81,27 @@ landed-ai-commerce-platform/
 
 Entry point: `packages.graphs.landed_langgraph.build_landed_graph`
 
+Default graph (`use_adk=True`):
+
+```text
+START -> graph_orchestrator_node -> adk_orchestrator_node -> END
+```
+
 | Node | Role |
 |------|------|
 | `graph_orchestrator_node` | Session state, routing, short-term memory |
-| `knowledge_node` | Grounding via `retrieve_knowledge` (lab shortcut) |
-| `recommendation_node` | Builds `final_answer` from grounded evidence |
+| `adk_orchestrator_node` | Invokes ADK `landed_orchestrator` and writes `final_answer` |
 
-Current lab graph:
+Lab graph (`use_adk=False`):
 
 ```text
 START -> graph_orchestrator_node -> knowledge_node -> recommendation_node -> END
 ```
+
+| Node | Role |
+|------|------|
+| `knowledge_node` | Grounding via `retrieve_knowledge` |
+| `recommendation_node` | Builds `final_answer` from `grounded_answer` |
 
 Run:
 
@@ -98,21 +109,19 @@ Run:
 .venv/bin/python -m packages.graphs.landed_langgraph
 ```
 
-Target architecture: `graph_orchestrator_node` will delegate to ADK `landed_orchestrator`, which will call specialist agents through `AgentTool`.
-
 ### ADK (agent execution layer)
 
 Entry point: `packages.agents.orchestrator.root_agent`
 
-| Agent | Responsibility |
-|-------|----------------|
-| `landed_orchestrator` | Business orchestration inside ADK |
-| `product_search` | Product resolution and offer search |
-| `audio_expert` | Technical audio guidance |
-| `pricing` | Colombian local price context |
-| `import_cost` | Landed import cost estimation |
-| `deal_advisor` | Concrete deal assessment |
-| `recommendation` | Final buying recommendation |
+| Agent | Responsibility | Tools |
+|-------|----------------|-------|
+| `landed_orchestrator` | Business orchestration | 6 × `AgentTool` |
+| `product_search` | Product resolution and offer search | `search_products`, `get_product_details` |
+| `audio_expert` | Technical audio guidance | `retrieve_knowledge` |
+| `pricing` | Colombian local price context | `get_local_price` |
+| `import_cost` | Landed import cost estimation | `calculate_import_cost` |
+| `deal_advisor` | Concrete deal assessment | `get_local_price`, `calculate_import_cost`, `retrieve_knowledge` |
+| `recommendation` | Final buying recommendation | `retrieve_knowledge` |
 
 Inspect ADK setup during development:
 
@@ -120,19 +129,19 @@ Inspect ADK setup during development:
 .venv/bin/python scripts/run_adk_agent.py
 ```
 
-This script is for development only. Production user traffic should enter through LangGraph.
+Production user traffic should enter through LangGraph, not this script.
 
 ### MCP (Cursor and external clients)
 
 Entry point: `packages.mcp.landed_mcp_server`
 
-| MCP tool | Purpose |
-|----------|---------|
-| `retrieve_landed_knowledge` | Grounded local knowledge with citations |
-| `search_landed_products` | Search imported and local offers |
-| `get_landed_product_details` | Resolve a product query to canonical details |
-| `get_landed_local_price` | Colombian local price context |
-| `calculate_landed_import_cost` | Landed import cost for a product query |
+| MCP tool | Internal tool |
+|----------|---------------|
+| `retrieve_landed_knowledge` | `retrieve_knowledge` |
+| `search_landed_products` | `search_products` |
+| `get_landed_product_details` | `get_product_details` |
+| `get_landed_local_price` | `get_local_price` |
+| `calculate_landed_import_cost` | `calculate_import_cost` |
 
 Run manually:
 
@@ -140,7 +149,29 @@ Run manually:
 .venv/bin/python -m packages.mcp.landed_mcp_server
 ```
 
-Cursor project config lives in `.cursor/mcp.json`. After opening the repo in Cursor, enable `landed-domain-mcp` in MCP settings. Cursor launches the stdio server with the project virtualenv and discovers the five tools automatically.
+Cursor project config: `.cursor/mcp.json`. Enable `landed-domain-mcp` in Cursor MCP settings.
+
+## Local development services
+
+| Service | Port | Purpose |
+|---------|------|---------|
+| Landed API mock | `3001` | Product, pricing, import tools |
+| Ollama | `11434` | Local agent LLM, embeddings, grounding |
+| Chroma index | local files | Semantic retrieval |
+
+```bash
+# Terminal 1: API mock
+.venv/bin/python scripts/landed_api_mock.py
+
+# Terminal 2: Ollama (if using local LLM profile)
+ollama serve
+```
+
+Set in `.env`:
+
+```bash
+LANDED_API_BASE_URL=http://localhost:3001
+```
 
 ## Knowledge, RAG, and grounding
 
@@ -188,12 +219,6 @@ Copy the environment template:
 cp .env.example .env
 ```
 
-Shared setting:
-
-```bash
-LANDED_API_BASE_URL=http://localhost:3001
-```
-
 ### LLM runtime profiles
 
 Use one codebase for local development and Google Cloud deployment:
@@ -231,7 +256,10 @@ source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 
-# Optional: index knowledge and verify grounding
+# Terminal 1: local Landed API mock
+.venv/bin/python scripts/landed_api_mock.py
+
+# Terminal 2: optional local LLM + knowledge index
 ollama serve
 .venv/bin/python -m packages.tools.knowledge.ingest_documents
 
@@ -242,6 +270,8 @@ ollama serve
 # Optional: verify MCP server module loads
 .venv/bin/python -c "import packages.mcp.landed_mcp_server as s; print(s.mcp.name)"
 ```
+
+Use `build_landed_graph(use_adk=False)` for the grounding-only lab graph.
 
 ## Documentation
 
@@ -256,7 +286,9 @@ ollama serve
 - Keep agent instructions in each agent's `prompts.py`.
 - Add deterministic API calls or calculations in `packages/tools/`.
 - Add graph nodes or edges in `packages/graphs/`.
+- Bridge LangGraph to ADK in `packages/graphs/adk_runner.py`.
 - Add markdown knowledge in `packages/knowledge_base/`, then re-run ingest.
+- Expose new capabilities through `packages/mcp/landed_mcp_server.py` when needed for external clients.
 - Add typed contracts in `packages/shared/schemas/` and transport DTOs in `packages/shared/dto/`.
 - Add runtime configuration in `packages/shared/config/`.
 - Add domain errors in `packages/shared/errors/`.
